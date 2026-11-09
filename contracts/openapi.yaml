@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Первый PR — публичный API
-  version: 1.1.0
+  version: 1.2.0
 security:
 - demoSession: []
 paths:
@@ -152,6 +152,15 @@ paths:
               examples:
                 forbidden:
                   externalValue: ./examples/forbidden.json
+        '409':
+          description: Обновите состояние
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                conflict:
+                  externalValue: ./examples/conflict.json
         '503':
           description: Сервис временно недоступен
           content:

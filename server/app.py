@@ -6,9 +6,11 @@ import secrets
 import psycopg
 from flask import Flask, jsonify, request
 from psycopg.rows import dict_row
+from werkzeug.utils import import_string
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from server.access import AccessError, confirm_proposal
+from server.access import AccessError, confirm_proposal, create_proposal
+from server.dialog import AgentRunner, AgentUnavailable, DemoAgent
 
 COOKIE = "buddy_session"
 SESSION_SECONDS = 8 * 60 * 60
@@ -52,7 +54,7 @@ def read_ticket(conn, user_id, request_id):
     ).fetchone()
 
 
-def read_workspace(conn, user_id, request_id=None):
+def read_workspace(conn, user_id, request_id=None, *, lock=False):
     """Read the assignment, permitted source, current ticket and actual grant in one snapshot."""
     row = conn.execute(
         """SELECT a.id AS task_id, a.title, r.id AS resource_id,
@@ -69,7 +71,8 @@ def read_workspace(conn, user_id, request_id=None):
             ORDER BY (status IN ('pending', 'approved')) DESC, created_at DESC, id DESC LIMIT 1
         ) ticket ON true
         WHERE u.id = %s AND u.role = 'intern'
-        """,
+        """
+        + (" FOR UPDATE OF u, a FOR SHARE OF r" if lock else ""),
         (request_id, user_id),
     ).fetchone()
     if row is None:
@@ -107,6 +110,14 @@ def create_app(config=None):
         app.config.update(config)
     if not app.config["DATABASE_URL"]:
         raise RuntimeError("Set DATABASE_URL to the demo PostgreSQL database")
+
+    factory_path = os.environ.get("BUDDY_AGENT_FACTORY")
+    agent = app.config.get("AGENT")
+    if agent is None and factory_path:
+        agent = import_string(factory_path)()
+    mode = "live" if agent is not None else "demo"
+    runner = AgentRunner(agent if agent is not None else DemoAgent(),
+                         app.config.get("AGENT_TIMEOUT", 10), mode)
 
     def connect():
         return psycopg.connect(app.config["DATABASE_URL"], row_factory=dict_row)
@@ -187,6 +198,49 @@ def create_app(config=None):
             if not user_id:
                 return expired()
             return jsonify(read_workspace(conn, user_id))
+
+    @app.post("/api/messages")
+    def message():
+        token = request.cookies.get(COOKIE)
+        if not token:
+            return expired()
+        with connect() as conn:
+            user_id = session_user_id(conn, token)
+            if not user_id:
+                return expired()
+            data = request.get_json(silent=True)
+            if not isinstance(data, dict) or set(data) != {"text"}:
+                return jsonify(code="invalid_input", message="Проверьте ввод"), 400
+            text = data["text"]
+            if not isinstance(text, str) or not text.strip() or len(text) > 4000:
+                return jsonify(code="invalid_input", message="Проверьте ввод"), 400
+            snapshot = read_workspace(conn, user_id)
+
+        # Release the DB connection before the external call. Recheck visibility
+        # before disclosing its answer or preparing a proposal.
+        try:
+            decision = runner.respond(text, snapshot)
+        except AgentUnavailable:
+            return unavailable(None)
+
+        with connect() as conn:
+            if session_user_id(conn, token) != user_id:
+                return expired()
+            state = read_workspace(conn, user_id, lock=True)
+            if state != snapshot:
+                return jsonify(code="conflict", message="Обновите состояние"), 409
+            proposal = None
+            if decision["kind"] == "propose_access":
+                if state["request"] or state["effectiveAccess"] != "missing":
+                    return jsonify(code="conflict", message="Обновите состояние"), 409
+                proposal = create_proposal(conn, user_id)
+                conn.execute("""
+                    INSERT INTO onboarding_events(assignment_id, name)
+                    VALUES (%s, 'blocker_reported') ON CONFLICT DO NOTHING
+                """, (state["task"]["taskId"],))
+            return jsonify(text=decision["text"], aiMode=mode, workspace=state,
+                           source=state["source"] if decision["sourceId"] else None,
+                           proposal=proposal)
 
     @app.post("/api/proposals/<proposal_id>/confirm")
     def confirm(proposal_id):
