@@ -7,7 +7,10 @@ export function createClient(): ApiClient {
   if (mode === 'http') {
     return new HttpApiClient(import.meta.env.VITE_API_BASE_URL ?? '/api');
   }
-  return new TestApiClient();
+  const params = new URLSearchParams(window.location.search);
+  const parsed = Number(params.get('latency') ?? '0');
+  const latency = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+  return new TestApiClient(latency);
 }
 
 export { HttpApiClient, readStoredSession, storeSession } from './client';

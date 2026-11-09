@@ -1,6 +1,7 @@
 import type { ApiClient, Workspace } from '../api/types';
 import { ChatPanel } from './ChatPanel';
 import { NextStepCard, ProgressCard } from './ProgressCard';
+import { DemoPanel } from './DemoPanel';
 
 interface WorkspaceBodyProps {
   workspace: Workspace;
@@ -12,15 +13,18 @@ interface WorkspaceBodyProps {
 export function WorkspaceBody({ workspace, client, onRefresh, refreshing }: WorkspaceBodyProps) {
   if (workspace.task === null) {
     return (
-      <section className="card empty-card" aria-live="polite">
-        <p>Задача пока не назначена.</p>
-        <p className="muted">
-          Попросите руководителя назначить первую задачу — после этого помощник поможет с доступами и шагами.
-        </p>
-        <button className="btn btn-ghost" onClick={onRefresh} disabled={refreshing}>
-          Обновить
-        </button>
-      </section>
+      <>
+        {workspace.user.role === 'operator' && <DemoPanel client={client} />}
+        <section className="card empty-card" aria-live="polite">
+          <p>Задача пока не назначена.</p>
+          <p className="muted">
+            Попросите руководителя назначить первую задачу — после этого помощник поможет с доступами и шагами.
+          </p>
+          <button className="btn btn-ghost" onClick={onRefresh} disabled={refreshing}>
+            Обновить
+          </button>
+        </section>
+      </>
     );
   }
 

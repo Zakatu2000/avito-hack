@@ -6,6 +6,7 @@ import {
   exampleSessions,
   exampleWorkspaceApprovedNoAccess,
   exampleWorkspaceGranted,
+  exampleWorkspaceGrantedDirect,
   exampleWorkspaceInitial,
   exampleWorkspaceOperator,
   exampleWorkspacePending,
@@ -13,7 +14,7 @@ import {
 } from './fixtures';
 import type { ApiClient, ConfirmResult, MessageReply, SessionInfo, TaskReturnEvent, Workspace } from './types';
 
-export type DemoPhase = 'initial' | 'pending' | 'approved' | 'granted' | 'rejected';
+export type DemoPhase = 'initial' | 'pending' | 'approved' | 'granted' | 'granted-direct' | 'rejected';
 
 const requestStatusLabels: Record<string, string> = {
   pending: 'на согласовании',
@@ -29,7 +30,10 @@ interface PersistedDemoState {
 }
 
 function isValidPhase(value: unknown): value is DemoPhase {
-  return typeof value === 'string' && ['initial', 'pending', 'approved', 'granted', 'rejected'].includes(value);
+  return (
+    typeof value === 'string' &&
+    ['initial', 'pending', 'approved', 'granted', 'granted-direct', 'rejected'].includes(value)
+  );
 }
 
 function readDemoState(): PersistedDemoState {
@@ -66,8 +70,16 @@ export class TestApiClient implements ApiClient {
 
   setDemoPhase(phase: DemoPhase): void {
     this.phase = phase;
-    if (phase !== 'pending' && this.confirmResult !== null) {
-      this.confirmResult = { ...this.confirmResult, request: { ...this.confirmResult.request, status: phase === 'rejected' ? 'rejected' : phase === 'approved' || phase === 'granted' ? 'approved' : 'pending' } };
+    if (phase === 'granted-direct') {
+      this.confirmResult = null;
+    } else if (this.confirmResult !== null && phase !== 'pending') {
+      const status =
+        phase === 'rejected'
+          ? 'rejected'
+          : phase === 'approved' || phase === 'granted'
+            ? 'approved'
+            : this.confirmResult.request.status;
+      this.confirmResult = { ...this.confirmResult, request: { ...this.confirmResult.request, status } };
     }
     this.persist();
   }
@@ -100,6 +112,8 @@ export class TestApiClient implements ApiClient {
         return exampleWorkspaceApprovedNoAccess;
       case 'granted':
         return exampleWorkspaceGranted;
+      case 'granted-direct':
+        return exampleWorkspaceGrantedDirect;
       case 'rejected':
         return exampleWorkspaceRejected;
       default:

@@ -9,7 +9,9 @@ export interface AppProps {
   client?: ApiClient;
 }
 
-export function App({ client = createClient() }: AppProps) {
+export function App({ client: clientProp }: AppProps) {
+  const [defaultClient] = useState<ApiClient>(createClient);
+  const client = clientProp ?? defaultClient;
   const [session, setSession] = useState<SessionInfo | null>(() => readStoredSession());
   const [expired, setExpired] = useState(false);
 

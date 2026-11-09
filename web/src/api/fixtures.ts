@@ -111,6 +111,21 @@ export const exampleWorkspaceGranted: Workspace = {
   },
 };
 
+export const exampleWorkspaceGrantedDirect: Workspace = {
+  ...exampleWorkspaceInitial,
+  request: null,
+  effectiveAccess: 'granted',
+  nextStep: {
+    code: 'return-to-task',
+    title: 'Следующий шаг по задаче',
+    items: [
+      'Склонируйте репозиторий todo-service',
+      'Откройте инструкцию «Первый PR»',
+      'Создайте ветку feat/<имя> и начните задачу',
+    ],
+  },
+};
+
 export const exampleWorkspaceRejected: Workspace = {
   ...exampleWorkspaceInitial,
   request: exampleRequestRejected,
