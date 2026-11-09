@@ -1,0 +1,284 @@
+:root {
+  --bg: #f4f5f7;
+  --card: #ffffff;
+  --ink: #1a2233;
+  --muted: #6b7280;
+  --accent: #0d84ff;
+  --ok: #0e9f6e;
+  --ok-bg: #e6f7f0;
+  --warn: #b7791f;
+  --warn-bg: #fdf3e3;
+  --err: #d64545;
+  --err-bg: #fdeaea;
+  --chip: #eef4ff;
+  --line: #e5e7eb;
+  --radius: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 12px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.card-label {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 8px;
+}
+
+.task-title {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+}
+
+.login-card h1 {
+  font-size: 20px;
+  margin: 0 0 8px;
+}
+
+.btn-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.btn {
+  border: 0;
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-ghost {
+  background: #fff;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.btn-ok {
+  background: var(--ok);
+  color: #fff;
+}
+
+.notice {
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  margin: 10px 0;
+}
+
+.notice-warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.notice-err {
+  background: var(--err-bg);
+  color: var(--err);
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  background: #0f1b33;
+  color: #fff;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.brand {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.topbar-user {
+  color: #9fb0d0;
+  margin-left: auto;
+}
+
+.aimode {
+  font-size: 12px;
+  border: 1px solid #3b4c77;
+  border-radius: 999px;
+  padding: 3px 10px;
+  color: #cfe0ff;
+}
+
+.aimode-real {
+  border-color: #2f8f5b;
+  color: #a9ecc4;
+}
+
+.workspace {
+  width: 100%;
+  max-width: 920px;
+  margin: 18px auto;
+  padding: 0 14px;
+  flex: 1;
+}
+
+.workspace-grid {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 14px;
+  align-items: start;
+}
+
+@media (max-width: 760px) {
+  .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+.badge-access-denied {
+  background: var(--err-bg);
+  color: var(--err);
+}
+
+.badge-access-granted {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+
+.badge-access-unknown {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.badge-request-pending {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.badge-request-approved {
+  background: var(--chip);
+  color: #2350a8;
+}
+
+.badge-request-rejected {
+  background: var(--err-bg);
+  color: var(--err);
+}
+
+.side-card {
+  position: sticky;
+  top: 14px;
+}
+
+.side-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 10px;
+  font-size: 13px;
+  margin: 0;
+}
+
+.side-list dt {
+  color: var(--muted);
+}
+
+.side-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.refresh-btn {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.skeleton {
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #eceff3 25%, #f7f9fc 50%, #eceff3 75%);
+  background-size: 200% 100%;
+  animation: sk 1.2s infinite;
+  margin: 10px 0;
+}
+
+.skeleton-short {
+  width: 50%;
+}
+
+@keyframes sk {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.empty-card {
+  text-align: center;
+  padding: 40px 16px;
+}
