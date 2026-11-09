@@ -1,12 +1,14 @@
-import type { Workspace } from '../api/types';
+import type { ApiClient, Workspace } from '../api/types';
+import { ChatPanel } from './ChatPanel';
 
 interface WorkspaceBodyProps {
   workspace: Workspace;
+  client: ApiClient;
   onRefresh: () => void;
   refreshing: boolean;
 }
 
-export function WorkspaceBody({ workspace, onRefresh, refreshing }: WorkspaceBodyProps) {
+export function WorkspaceBody({ workspace, client, onRefresh, refreshing }: WorkspaceBodyProps) {
   if (workspace.task === null) {
     return (
       <section className="card empty-card" aria-live="polite">
@@ -58,6 +60,8 @@ export function WorkspaceBody({ workspace, onRefresh, refreshing }: WorkspaceBod
             </p>
           )}
         </section>
+
+        <ChatPanel client={client} onRefresh={onRefresh} instruction={task.instruction} />
 
         {workspace.nextStep !== null && (
           <section className="card" aria-labelledby="next-step-title">

@@ -10,7 +10,7 @@ interface WorkspaceScreenProps {
 }
 
 export function WorkspaceScreen({ client, session, onExpired, onLogout }: WorkspaceScreenProps) {
-  const { state, refresh } = useWorkspace(client, onExpired);
+  const { state, refreshing, refresh } = useWorkspace(client, onExpired);
 
   async function signOut() {
     try {
@@ -67,7 +67,12 @@ export function WorkspaceScreen({ client, session, onExpired, onLogout }: Worksp
         )}
 
         {workspace !== null && (
-          <WorkspaceBody workspace={workspace} onRefresh={() => void refresh()} refreshing={false} />
+          <WorkspaceBody
+            workspace={workspace}
+            client={client}
+            onRefresh={() => void refresh()}
+            refreshing={refreshing}
+          />
         )}
       </main>
     </div>

@@ -84,4 +84,27 @@ describe('App: вход и первый экран', () => {
     expect(await screen.findByText('Задача пока не назначена.')).toBeInTheDocument();
     expect(screen.queryByTestId('request-badge')).not.toBeInTheDocument();
   });
+
+  it('весь путь F3: вопрос → уточнение → предложение → подтверждение → заявка в сведениях', async () => {
+    const client = new TestApiClient();
+    render(<App client={client} />);
+
+    await userEvent.click(screen.getByRole('button', { name: /Войти как Вася Стажёр/ }));
+    await screen.findByText(/Настроить CI для учебного сервиса/);
+
+    await userEvent.type(screen.getByLabelText('Текст вопроса'), 'Не могу начать первую задачу. Что делать?');
+    await userEvent.click(screen.getByRole('button', { name: 'Спросить' }));
+    expect(await screen.findByText(/открыть репозиторий задачи #TSK-101/)).toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText('Текст вопроса'), 'Про репозиторий, он не открывается');
+    await userEvent.click(screen.getByRole('button', { name: 'Спросить' }));
+    expect(await screen.findByTestId('proposal-PRP-77')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Подтвердить' }));
+    expect(await screen.findByText(/Заявка создана: REQ-2026-0142/)).toBeInTheDocument();
+
+    expect(await screen.findByTestId('request-badge')).toHaveTextContent('REQ-2026-0142');
+    expect(screen.getByText(/Заявка на согласовании/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Обновить состояние' })).toBeInTheDocument();
+  });
 });
