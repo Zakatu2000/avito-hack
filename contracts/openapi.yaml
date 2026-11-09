@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Первый PR — публичный API
-  version: 1.0.0
+  version: 1.0.1
 security:
 - demoSession: []
 paths:
@@ -43,6 +43,15 @@ paths:
               examples:
                 session_expired:
                   externalValue: ./examples/session_expired.json
+        '503':
+          description: Сервис временно недоступен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                unavailable:
+                  externalValue: ./examples/unavailable.json
       requestBody:
         required: true
         content:
