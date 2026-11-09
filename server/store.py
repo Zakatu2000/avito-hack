@@ -47,10 +47,14 @@ def migrate(conn):
                         (path.name, checksum))
 
 
+def is_demo_database(name):
+    return name == "avito_buddy_demo" or re.fullmatch(r"avito_buddy_test_[a-z0-9_]+", name) is not None
+
+
 def _lock_demo(cur):
     cur.execute("SELECT current_database()")
     name, = cur.fetchone()
-    if not (name == "avito_buddy_demo" or re.fullmatch(r"avito_buddy_test_[a-z0-9_]+", name)):
+    if not is_demo_database(name):
         raise ValueError("Fixtures require avito_buddy_demo or avito_buddy_test_<suffix>.")
     cur.execute("SELECT pg_advisory_xact_lock(%s)", (STORE_LOCK,))
 

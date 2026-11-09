@@ -10,6 +10,7 @@ from werkzeug.utils import import_string
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from server.access import AccessError, confirm_proposal, create_proposal
+from server.operator_demo import operator_blueprint
 from server.dialog import AgentRunner, AgentUnavailable, DemoAgent
 
 COOKIE = "buddy_session"
@@ -106,6 +107,7 @@ def read_workspace(conn, user_id, request_id=None, *, lock=False):
 def create_app(config=None):
     app = Flask(__name__, static_folder=None)
     app.config.from_mapping(DATABASE_URL=os.environ.get("DATABASE_URL"))
+    app.config["DEMO_OPERATOR"] = os.environ.get("BUDDY_DEMO_OPERATOR") == "1"
     if config:
         app.config.update(config)
     if not app.config["DATABASE_URL"]:
@@ -145,6 +147,7 @@ def create_app(config=None):
     @app.errorhandler(AccessError)
     def access_error(error):
         code, message = {
+            401: ("session_expired", "Войдите снова"),
             400: ("invalid_input", "Проверьте ввод"),
             403: ("forbidden", "Операция недоступна"),
             409: ("conflict", "Обновите состояние"),
@@ -261,4 +264,6 @@ def create_app(config=None):
                 raise AccessError(403, "Операция недоступна")
             return jsonify(state)
 
+    if app.config["DEMO_OPERATOR"]:
+        app.register_blueprint(operator_blueprint(connect, session_user_id, COOKIE))
     return app

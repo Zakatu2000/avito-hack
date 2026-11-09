@@ -95,3 +95,23 @@ B1 · Контракт v1.2.0 для разработки веб-клиента 
 По умолчанию используется явно маркированный детерминированный режим demo. Для подключения реализации A4 задайте BUDDY_AGENT_FACTORY как путь к фабрике Python (например, your_package.agent:create_agent). Фабрика без аргументов возвращает объект с respond(text, tools), который выдаёт словарь AgentDecision по contracts/agent.md и режим live. Модуль и ключ провайдера поставляет AI-разработчик. Ограничьте сетевой тайм-аут внутри адаптера; API ждёт до 10 секунд и допускает до четырёх незавершённых вызовов на процесс. Ошибка или тайм-аут дают 503 без создания предложения. В деморежим при ошибке сервер автоматически не переключается.
 
 В onboarding_events записываются начало блокировки (первое подготовленное предложение по назначению) и создание заявки. Это наблюдаемые события прототипа; время появления проблемы до обращения стажёра неизвестно. Событие создания фиксируется в транзакции заявки.
+
+## B5 · согласование в отдельной сессии
+
+Для демонстрации перед запуском API задайте `export BUDDY_DEMO_OPERATOR=1`. Маршруты /demo работают только с выделенной демобазой или временной тестовой БД. Выполните путь B4 и B3 как стажёр, скопируйте requestId. В другом терминале войдите как оператор своей команды, используя отдельный файл cookie:
+
+    curl -sS -c /tmp/first-pr-operator.cookies -H 'Content-Type: application/json' -d '{"username":"operator-demo","password":"training-only"}' http://127.0.0.1:5050/api/session
+    request_id='ID_ИЗ_ОТВЕТА_CONFIRM'
+    url="http://127.0.0.1:5050/demo/requests/$request_id"
+    curl -sS -b /tmp/first-pr-operator.cookies "$url"
+    curl -sS -b /tmp/first-pr-operator.cookies -H 'Content-Type: application/json' -d '{"action":"approve"}' "$url"
+
+Обновите workspace с cookie стажёра: решение approved, право missing. Затем выдайте право:
+
+    curl -sS -b /tmp/first-pr-operator.cookies -H 'Content-Type: application/json' -d '{"action":"grant"}' "$url"
+
+Повторите вопрос стажёра: теперь помощник покажет следующий шаг. В альтернативном прогоне для ожидающей заявки используйте action=reject. Для новой демонстрации оператор может явно сбросить синтетические учётные записи, включая обе сессии:
+
+    curl -sS -b /tmp/first-pr-operator.cookies -H 'Content-Type: application/json' -d '{"confirm":"reset-demo"}' http://127.0.0.1:5050/demo/reset
+
+[Схема интеграций и условия перехода к пилоту](docs/integration.md).
