@@ -74,10 +74,17 @@ export interface ConfirmResult {
   nextStep: NextStep | null;
 }
 
+export interface TaskReturnEvent {
+  name: 'task_returned';
+  taskId: string;
+  requestId: string | null;
+}
+
 export interface ApiClient {
   login(login: string): Promise<SessionInfo>;
   logout(): Promise<void>;
   getWorkspace(): Promise<Workspace>;
   sendMessage(text: string): Promise<MessageReply>;
   confirmProposal(proposalId: string, idempotencyKey: string): Promise<ConfirmResult>;
+  reportTaskReturn(taskId: string, requestId: string | null): Promise<void>;
 }

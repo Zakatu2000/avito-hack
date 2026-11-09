@@ -26,6 +26,7 @@ function stubClient(overrides: Partial<ApiClient>): ApiClient {
     getWorkspace: vi.fn().mockResolvedValue(undefined),
     sendMessage: vi.fn(),
     confirmProposal: vi.fn(),
+    reportTaskReturn: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   } as ApiClient;
 }

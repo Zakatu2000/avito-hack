@@ -11,7 +11,7 @@ import {
   exampleWorkspacePending,
   exampleWorkspaceRejected,
 } from './fixtures';
-import type { ApiClient, ConfirmResult, MessageReply, SessionInfo, Workspace } from './types';
+import type { ApiClient, ConfirmResult, MessageReply, SessionInfo, TaskReturnEvent, Workspace } from './types';
 
 export type DemoPhase = 'initial' | 'pending' | 'approved' | 'granted' | 'rejected';
 
@@ -21,18 +21,71 @@ const requestStatusLabels: Record<string, string> = {
   rejected: 'отклонена',
 };
 
+const DEMO_STATE_KEY = 'aibuddy.teststate';
+
+interface PersistedDemoState {
+  phase: DemoPhase;
+  confirmResult: ConfirmResult | null;
+}
+
+function isValidPhase(value: unknown): value is DemoPhase {
+  return typeof value === 'string' && ['initial', 'pending', 'approved', 'granted', 'rejected'].includes(value);
+}
+
+function readDemoState(): PersistedDemoState {
+  try {
+    const raw = window.localStorage.getItem(DEMO_STATE_KEY);
+    if (!raw) return { phase: 'initial', confirmResult: null };
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) return { phase: 'initial', confirmResult: null };
+    const v = parsed as Record<string, unknown>;
+    if (!isValidPhase(v.phase)) return { phase: 'initial', confirmResult: null };
+    return { phase: v.phase, confirmResult: (v.confirmResult as ConfirmResult | null) ?? null };
+  } catch {
+    return { phase: 'initial', confirmResult: null };
+  }
+}
+
 export class TestApiClient implements ApiClient {
-  private phase: DemoPhase = 'initial';
-  private confirmResult: ConfirmResult | null = null;
+  private phase: DemoPhase;
+  private confirmResult: ConfirmResult | null;
   private userMessageCount = 0;
   private readonly latencyMs: number;
+  private readonly events: TaskReturnEvent[] = [];
 
   constructor(latencyMs = 0) {
     this.latencyMs = latencyMs;
+    const persisted = readDemoState();
+    this.phase = persisted.phase;
+    this.confirmResult = persisted.confirmResult;
+  }
+
+  recordedEvents(): readonly TaskReturnEvent[] {
+    return this.events;
   }
 
   setDemoPhase(phase: DemoPhase): void {
     this.phase = phase;
+    if (phase !== 'pending' && this.confirmResult !== null) {
+      this.confirmResult = { ...this.confirmResult, request: { ...this.confirmResult.request, status: phase === 'rejected' ? 'rejected' : phase === 'approved' || phase === 'granted' ? 'approved' : 'pending' } };
+    }
+    this.persist();
+  }
+
+  resetDemo(): void {
+    this.phase = 'initial';
+    this.confirmResult = null;
+    this.userMessageCount = 0;
+    window.localStorage.removeItem(DEMO_STATE_KEY);
+  }
+
+  private persist(): void {
+    try {
+      const state: PersistedDemoState = { phase: this.phase, confirmResult: this.confirmResult };
+      window.localStorage.setItem(DEMO_STATE_KEY, JSON.stringify(state));
+    } catch {
+      return;
+    }
   }
 
   private delay(): Promise<void> {
@@ -151,6 +204,13 @@ export class TestApiClient implements ApiClient {
     if (this.confirmResult !== null) return this.confirmResult;
     this.phase = 'pending';
     this.confirmResult = { request: exampleRequestPending, nextStep: null };
+    this.persist();
     return this.confirmResult;
+  }
+
+  async reportTaskReturn(taskId: string, requestId: string | null): Promise<void> {
+    await this.delay();
+    this.requireSession();
+    this.events.push({ name: 'task_returned', taskId, requestId });
   }
 }

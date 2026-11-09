@@ -109,4 +109,11 @@ export class HttpApiClient implements ApiClient {
       body: JSON.stringify({ idempotencyKey }),
     });
   }
+
+  reportTaskReturn(taskId: string, requestId: string | null): Promise<void> {
+    return this.request<void>('/events', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'task_returned', taskId, requestId }),
+    });
+  }
 }

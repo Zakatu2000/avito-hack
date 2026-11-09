@@ -1,5 +1,6 @@
 import type { ApiClient, Workspace } from '../api/types';
 import { ChatPanel } from './ChatPanel';
+import { NextStepCard, ProgressCard } from './ProgressCard';
 
 interface WorkspaceBodyProps {
   workspace: Workspace;
@@ -38,7 +39,7 @@ export function WorkspaceBody({ workspace, client, onRefresh, refreshing }: Work
             <span className={`badge badge-access-${workspace.effectiveAccess}`} data-testid="access-badge">
               {workspace.effectiveAccess === 'denied' && <>Ресурс недоступен: {task.resourceId}</>}
               {workspace.effectiveAccess === 'granted' && <>Доступ подтверждён: {task.resourceId}</>}
-              {workspace.effectiveAccess === 'unknown' && <>Доступ: неизвестно</>}
+              {workspace.effectiveAccess === 'unknown' && <>Доступ: неизвестно ({task.resourceId})</>}
             </span>
             {workspace.request !== null && (
               <span className={`badge badge-request-${workspace.request.status}`} data-testid="request-badge">
@@ -61,19 +62,11 @@ export function WorkspaceBody({ workspace, client, onRefresh, refreshing }: Work
           )}
         </section>
 
+        <ProgressCard workspace={workspace} onRefresh={onRefresh} refreshing={refreshing} />
+
         <ChatPanel client={client} onRefresh={onRefresh} instruction={task.instruction} />
 
-        {workspace.nextStep !== null && (
-          <section className="card" aria-labelledby="next-step-title">
-            <div className="card-label">Следующий шаг</div>
-            <h3 id="next-step-title">{workspace.nextStep.title}</h3>
-            <ul>
-              {workspace.nextStep.items.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </section>
-        )}
+        <NextStepCard workspace={workspace} client={client} />
       </div>
 
       <aside className="card side-card" aria-label="Сведения о сессии">
@@ -88,7 +81,7 @@ export function WorkspaceBody({ workspace, client, onRefresh, refreshing }: Work
           <dt>Ресурс задачи</dt>
           <dd>{task.resourceName}</dd>
           <dt>Заявка</dt>
-          <dd>{workspace.request !== null ? workspace.request.id : '—'}</dd>
+          <dd data-testid="side-request-id">{workspace.request !== null ? workspace.request.id : '—'}</dd>
         </dl>
         <button className="btn btn-primary refresh-btn" onClick={onRefresh} disabled={refreshing}>
           {refreshing ? 'Проверяем…' : 'Обновить состояние'}

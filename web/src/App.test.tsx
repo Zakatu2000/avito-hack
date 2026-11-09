@@ -15,6 +15,7 @@ function stubClient(overrides: Partial<ApiClient>): ApiClient {
     getWorkspace: vi.fn(),
     sendMessage: vi.fn(),
     confirmProposal: vi.fn(),
+    reportTaskReturn: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   } as ApiClient;
 }
@@ -105,6 +106,6 @@ describe('App: вход и первый экран', () => {
 
     expect(await screen.findByTestId('request-badge')).toHaveTextContent('REQ-2026-0142');
     expect(screen.getByText(/Заявка на согласовании/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Обновить состояние' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Обновить состояние' }).length).toBeGreaterThan(0);
   });
 });
