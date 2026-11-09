@@ -1,0 +1,14 @@
+{
+  "task": {
+    "taskId": "task-01",
+    "title": "Открыть README учебного репозитория",
+    "resourceId": "repo-intro"
+  },
+  "source": {
+    "sourceId": "demo-guide",
+    "excerpt": "Учебная инструкция. Подтвердите заявку на доступ к назначенному репозиторию."
+  },
+  "effectiveAccess": "missing",
+  "request": null,
+  "nextStep": "Спросите помощника о первом шаге"
+}
