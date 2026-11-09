@@ -1,4 +1,4 @@
-"""B2 demo sessions and read-only, user-scoped workspace API."""
+"""Session, workspace and access confirmation routes for the synthetic demo."""
 import hashlib
 import os
 import secrets
@@ -7,6 +7,8 @@ import psycopg
 from flask import Flask, jsonify, request
 from psycopg.rows import dict_row
 from werkzeug.security import check_password_hash, generate_password_hash
+
+from server.access import AccessError, confirm_proposal
 
 COOKIE = "buddy_session"
 SESSION_SECONDS = 8 * 60 * 60
@@ -43,13 +45,14 @@ def read_ticket(conn, user_id, request_id):
         + VISIBLE_ASSIGNMENT
         + """
         JOIN access_requests ticket ON ticket.assignment_id = a.id
+          AND ticket.user_id = u.id AND ticket.resource_id = r.id
         WHERE u.id = %s AND u.role = 'intern' AND ticket.id = %s
         """,
         (user_id, request_id),
     ).fetchone()
 
 
-def read_workspace(conn, user_id):
+def read_workspace(conn, user_id, request_id=None):
     """Read the assignment, permitted source, current ticket and actual grant in one snapshot."""
     row = conn.execute(
         """SELECT a.id AS task_id, a.title, r.id AS resource_id,
@@ -61,11 +64,13 @@ def read_workspace(conn, user_id):
         LEFT JOIN access_grants g ON g.user_id = u.id AND g.resource_id = r.id
         LEFT JOIN LATERAL (
             SELECT id, status FROM access_requests
-            WHERE assignment_id = a.id ORDER BY created_at DESC, id DESC LIMIT 1
+            WHERE assignment_id = a.id AND user_id = u.id AND resource_id = r.id
+              AND id = COALESCE(%s::text, id)
+            ORDER BY (status IN ('pending', 'approved')) DESC, created_at DESC, id DESC LIMIT 1
         ) ticket ON true
         WHERE u.id = %s AND u.role = 'intern'
         """,
-        (user_id,),
+        (request_id, user_id),
     ).fetchone()
     if row is None:
         return dict(task=None, source=None, effectiveAccess="unknown", request=None,
@@ -106,6 +111,14 @@ def create_app(config=None):
     def connect():
         return psycopg.connect(app.config["DATABASE_URL"], row_factory=dict_row)
 
+    def session_user_id(conn, token):
+        session = conn.execute(
+            """SELECT user_id FROM sessions
+               WHERE token_hash = %s AND expires_at > now()""",
+            (token_hash(token),),
+        ).fetchone()
+        return session["user_id"] if session else None
+
     def expired():
         return jsonify(code="session_expired", message="Войдите снова"), 401
 
@@ -117,6 +130,15 @@ def create_app(config=None):
     @app.errorhandler(psycopg.OperationalError)
     def unavailable(_error):
         return jsonify(code="unavailable", message="Сервис временно недоступен"), 503
+
+    @app.errorhandler(AccessError)
+    def access_error(error):
+        code, message = {
+            400: ("invalid_input", "Проверьте ввод"),
+            403: ("forbidden", "Операция недоступна"),
+            409: ("conflict", "Обновите состояние"),
+        }[error.status_code]
+        return jsonify(code=code, message=message), error.status_code
 
     @app.post("/api/session")
     def login():
@@ -161,13 +183,28 @@ def create_app(config=None):
         if not token:
             return expired()
         with connect() as conn:
-            session = conn.execute(
-                """SELECT user_id FROM sessions
-                   WHERE token_hash = %s AND expires_at > now()""",
-                (token_hash(token),),
-            ).fetchone()
-            if not session:
+            user_id = session_user_id(conn, token)
+            if not user_id:
                 return expired()
-            return jsonify(read_workspace(conn, session["user_id"]))
+            return jsonify(read_workspace(conn, user_id))
+
+    @app.post("/api/proposals/<proposal_id>/confirm")
+    def confirm(proposal_id):
+        token = request.cookies.get(COOKIE)
+        if not token:
+            return expired()
+        with connect() as conn:
+            user_id = session_user_id(conn, token)
+            if not user_id:
+                return expired()
+            key = request.headers.get("Idempotency-Key", "")
+            if "\x00" in proposal_id or request.stream.read(1):
+                return jsonify(code="invalid_input", message="Проверьте ввод"), 400
+            ticket = confirm_proposal(conn, user_id, proposal_id, key)
+            state = read_workspace(conn, user_id, request_id=ticket["requestId"])
+            if state["request"] is None:
+                # The ticket's immutable scope must still be visible.
+                raise AccessError(403, "Операция недоступна")
+            return jsonify(state)
 
     return app

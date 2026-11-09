@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Первый PR — публичный API
-  version: 1.0.1
+  version: 1.1.0
 security:
 - demoSession: []
 paths:
@@ -174,6 +174,11 @@ paths:
     post:
       operationId: confirmProposal
       summary: Подтвердить предложение и получить сохранённое состояние
+      description: >-
+        Отправляйте пустое тело и один Idempotency-Key. При повторе подтверждения
+        request содержит исходный номер заявки и её текущий статус. GET /api/workspace
+        показывает актуальную заявку по назначению. Чужое или неизвестное предложение
+        даёт одинаковый 403; устаревший контекст или повтор ключа с другим предложением — 409.
       responses:
         '200':
           description: Успех
@@ -242,6 +247,9 @@ paths:
         schema:
           type: string
           minLength: 1
+          maxLength: 128
+          pattern: '^[!-+\--~]+$'
+        example: confirm-c43ea025-8bb2-4237-905b-305aefaafd6b
 components:
   securitySchemes:
     demoSession:
