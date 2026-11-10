@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     deepseek_base_url: str | None = None
     deepseek_model: str | None = None
     deepseek_api_key: SecretStr | None = None
-    deepseek_timeout_seconds: float = 15.0
+    deepseek_timeout_seconds: float = 8.0
 
     @model_validator(mode="after")
     def _live_mode_requires_full_config(self) -> "Settings":

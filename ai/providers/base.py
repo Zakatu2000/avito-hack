@@ -24,7 +24,7 @@ class LLMRequest(ContractModel):
     facts: str
     user_message: str
     max_output_tokens: int = 800
-    timeout_seconds: float = 10.0
+    timeout_seconds: float = 8.0
 
 
 class LLMResponse(ContractModel):

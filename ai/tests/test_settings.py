@@ -35,4 +35,4 @@ def test_live_mode_with_full_config() -> None:
         deepseek_model="model-name",
     )
     assert settings.ai_mode == "live"
-    assert settings.deepseek_timeout_seconds == 15.0
+    assert settings.deepseek_timeout_seconds == 8.0
