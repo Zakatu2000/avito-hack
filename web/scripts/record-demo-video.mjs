@@ -1,3 +1,9 @@
+// Records the demo video against a REAL stand (Flask API + PostgreSQL).
+// Usage: BASE_URL=http://127.0.0.1:5051 BUDDY_DEMO_OPERATOR=1 on the stand.
+//   node scripts/record-demo-video.mjs
+// Steps are paced (1-3 s holds) so key frames are readable: AI-mode badge,
+// request id before/after reload, "approved, waiting for the right",
+// next step after grant, return-to-task confirmation. Target length >= 60 s.
 import { chromium } from '@playwright/test';
 import { mkdirSync, readdirSync, copyFileSync, unlinkSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -7,83 +13,104 @@ const here = dirname(fileURLToPath(import.meta.url));
 const outDir = resolve(here, '../../delivery/video');
 mkdirSync(outDir, { recursive: true });
 
-const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173';
+const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5051';
 
-const browser = await chromium.launch();
+const startedAt = Date.now();
+const browser = await chromium.launch({ channel: 'chrome' });
 const context = await browser.newContext({
   viewport: { width: 1280, height: 800 },
   recordVideo: { dir: outDir, size: { width: 1280, height: 800 } },
 });
 const page = await context.newPage();
-page.setDefaultTimeout(15000);
+page.setDefaultTimeout(20000);
 
 const pause = (ms) => page.waitForTimeout(ms);
 
 async function type(text) {
   await page.getByLabel('Текст вопроса').click();
-  await page.getByLabel('Текст вопроса').pressSequentially(text, { delay: 45 });
+  await page.getByLabel('Текст вопроса').pressSequentially(text, { delay: 55 });
 }
 
-await page.goto(BASE);
+async function loginAsOperator() {
+  await page.getByRole('button', { name: /Войти как operator-demo/ }).click();
+  await page.getByLabel('Номер заявки').waitFor();
+}
+
+async function logout() {
+  await page.getByRole('button', { name: 'Выйти' }).click();
+  await page.getByRole('button', { name: /Войти как intern-demo/ }).waitFor();
+  await pause(1200);
+}
+
+// 1. Start screen.
+await page.goto(BASE + '/');
 await page.evaluate(() => window.localStorage.clear());
 await page.reload();
-await pause(900);
+await pause(5000);
 
-await page.getByRole('button', { name: 'Войти как Вася Стажёр' }).click();
-await page.getByText('Настроить CI для учебного сервиса').waitFor();
-await pause(1200);
+// 2. Intern logs in - AI mode badge is visible in the header.
+await page.getByRole('button', { name: /Войти как intern-demo/ }).click();
+await page.getByTestId('aimode-badge').waitFor();
+await pause(4000);
 
+// 3. Ask the first question (typed slowly, readable).
 await type('Не могу начать первую задачу. Что делать?');
-await pause(600);
-await page.getByRole('button', { name: 'Спросить' }).click();
-await page.getByText(/Уточню, чтобы помочь точно/).waitFor();
-await pause(1200);
+await pause(1500);
+await page.getByRole('button', { name: 'Спросить', exact: true }).click();
+await page.getByText(/нет доступа/i).first().waitFor();
+await pause(4000);
 
-await type('Про репозиторий, он не открывается');
-await pause(600);
-await page.getByRole('button', { name: 'Спросить' }).click();
-await page.getByTestId('proposal-PRP-77').waitFor();
-await pause(1200);
-
-await page.getByRole('button', { name: 'Подтвердить' }).click();
-await page.getByText(/Заявка создана: REQ-2026-0142/).waitFor();
+// 4. Confirm the proposal -> request id appears.
+await page.getByRole('button', { name: 'Подтвердить', exact: true }).click();
+await page.getByTestId('progress-request-id').waitFor();
+const requestId = (await page.getByTestId('progress-request-id').innerText()).trim();
 await page.getByTestId('progress-card').scrollIntoViewIfNeeded();
-await pause(1600);
+await pause(4000);
 
+// 5. Reload - the SAME request id is restored (server-persisted state).
 await page.reload();
 await page.getByTestId('progress-request-id').waitFor();
-await page.getByTestId('progress-card').scrollIntoViewIfNeeded();
-await pause(1600);
+await page.getByTestId('progress-request-id').scrollIntoViewIfNeeded();
+await pause(4000);
 
-await page.getByRole('button', { name: 'Выйти' }).click();
-await page.getByRole('button', { name: 'Войти как Демооператор' }).click();
-await page.getByTestId('demo-panel').waitFor();
-await pause(1000);
-await page.getByTestId('demo-panel').getByRole('button', { name: 'Одобрить заявку' }).click();
-await pause(1000);
+// 6. Operator approves (separate session).
+await logout();
+await loginAsOperator();
+await page.getByLabel('Номер заявки').fill(requestId);
+await pause(1200);
+await page.getByRole('button', { name: 'Одобрить заявку' }).click();
+await page.getByRole('status').getByText(/approved/i).waitFor();
+await pause(3000);
 
-await page.getByRole('button', { name: 'Выйти' }).click();
-await page.getByRole('button', { name: 'Войти как Вася Стажёр' }).click();
+// 7. Intern sees "approved, waiting for the right" - decision != access.
+await logout();
+await page.getByRole('button', { name: /Войти как intern-demo/ }).click();
+await page.getByTestId('aimode-badge').waitFor();
+await page.getByTestId('progress-card').getByRole('button', { name: 'Обновить состояние' }).click();
 await page.getByTestId('wait-access-note').waitFor();
 await page.getByTestId('progress-card').scrollIntoViewIfNeeded();
-await pause(1600);
+await pause(4500);
 
-await page.getByRole('button', { name: 'Выйти' }).click();
-await page.getByRole('button', { name: 'Войти как Демооператор' }).click();
-await page.getByTestId('demo-panel').waitFor();
-await pause(800);
-await page.getByTestId('demo-panel').getByRole('button', { name: 'Выдать право' }).click();
+// 8. Operator grants the actual right.
+await logout();
+await loginAsOperator();
+await page.getByLabel('Номер заявки').fill(requestId);
 await pause(1000);
+await page.getByRole('button', { name: 'Выдать право' }).click();
+await page.getByRole('status').getByText(/granted/i).waitFor();
+await pause(3000);
 
-await page.getByRole('button', { name: 'Выйти' }).click();
-await page.getByRole('button', { name: 'Войти как Вася Стажёр' }).click();
-await page.getByRole('button', { name: 'Обновить состояние' }).first().click();
+// 9. Intern refreshes - access confirmed, next step shown, return to task.
+await logout();
+await page.getByRole('button', { name: /Войти как intern-demo/ }).click();
+await page.getByTestId('aimode-badge').waitFor();
+await page.getByTestId('progress-card').getByRole('button', { name: 'Обновить состояние' }).click();
 await page.getByTestId('return-to-task').waitFor();
-await page.getByTestId('return-to-task').scrollIntoViewIfNeeded();
-await pause(1000);
+await page.getByTestId('progress-card').scrollIntoViewIfNeeded();
+await pause(4000);
 await page.getByTestId('return-to-task').click();
 await page.getByTestId('return-recorded').waitFor();
-await pause(2000);
+await pause(7000);
 
 await context.close();
 await browser.close();
@@ -102,3 +129,5 @@ for (const f of files) {
   else unlinkSync(resolve(outDir, f));
 }
 console.log('VIDEO SAVED:', finalPath);
+console.log('REQUEST ID SHOWN:', requestId);
+console.log('RECORDING ELAPSED (s):', Math.round((Date.now() - startedAt) / 1000));
