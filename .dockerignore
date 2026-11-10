@@ -11,3 +11,4 @@ work
 **/dist
 web/coverage
 web/test-results
+**/.DS_Store

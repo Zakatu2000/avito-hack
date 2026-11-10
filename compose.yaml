@@ -37,6 +37,9 @@ services:
     build:
       context: .
       target: checks
+      args:
+        CHECK_UID: "${LOCAL_UID:-1000}"
+        CHECK_GID: "${LOCAL_GID:-1000}"
     environment:
       TEST_ADMIN_DATABASE_URL: postgresql://buddy:${POSTGRES_PASSWORD}@db:5432/postgres
     depends_on:

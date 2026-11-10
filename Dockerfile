@@ -18,6 +18,9 @@ EXPOSE 5050
 CMD ["sh", "-c", "python -m server.store migrate && python -m server.store seed && exec python -m waitress --listen=0.0.0.0:5050 --call server.app:create_app"]
 
 FROM runtime AS checks
+ARG CHECK_UID=1000
+ARG CHECK_GID=1000
+ENV HOME=/tmp
 USER root
 COPY --from=webbuild /usr/local/bin/node /usr/local/bin/node
 COPY --from=webbuild /usr/local/lib/node_modules /usr/local/lib/node_modules
@@ -29,6 +32,6 @@ RUN pip install --no-cache-dir -r server/requirements-test.txt -r contracts/requ
 COPY contracts contracts
 COPY scripts scripts
 COPY .coveragerc .coveragerc
-RUN mkdir -p reports && chown -R buddy:buddy reports web
-USER buddy
+RUN mkdir -p reports && chown -R "${CHECK_UID}:${CHECK_GID}" reports web
+USER ${CHECK_UID}:${CHECK_GID}
 CMD ["python", "scripts/check.py"]
