@@ -61,7 +61,7 @@
     <span class="tag">AI · агент и оценка качества</span>
   </div>
   <p class="sub" style="margin-top:8mm;">Все данные синтетические. Учебный пример, не регламент Авито.</p>
-  <p class="sub" style="margin-top:5mm;"><a style="color:#9ecbff" href="https://github.com/Zakatu2000/avito-hack/tree/integration/web1-server">Репозиторий текущей сборки</a> · <a style="color:#9ecbff" href="https://github.com/Zakatu2000/avito-hack/blob/integration/web1-server/delivery/video/demo.webm">Видеодемонстрация</a></p>
+  <p class="sub" style="margin-top:5mm;"><a style="color:#9ecbff" href="https://github.com/Zakatu2000/avito-hack/tree/integration/final">Репозиторий текущей сборки</a> · <a style="color:#9ecbff" href="https://github.com/Zakatu2000/avito-hack/blob/integration/final/delivery/video/demo.webm">Видеодемонстрация</a></p>
   <div class="footer"><span>AI-buddy «Первый PR»</span><span>1 / 12</span></div>
 </section>
 
@@ -103,7 +103,7 @@
     <div class="card">
       <h3>Почему это важно жюри</h3>
       <ul>
-        <li>Работающий прототип: 96 проверок Python, 36 тестов интерфейса и один браузерный прогон настоящего API прошли.</li>
+        <li>Работающий прототип: 155 проверок Python, 36 тестов интерфейса, 40/40 офлайн-диалогов и браузерный прогон настоящего API прошли.</li>
         <li>Права проверяет <b>только сервер</b>; роль из браузера — не полномочие.</li>
         <li>Режим AI (реальный/демо) <b>всегда виден</b> на экране.</li>
         <li>Ожидание ответа отображается в интерфейсе. Замер (Windows 11, Node 22, demo-режим): клик «Отправить» → ответ через реальный Flask API + PostgreSQL — медиана 168 мс (5 вопросов); полный сквозной сценарий — 3,2 с; локальный адаптер — 541 мс – 1,5 с. Условия — docs/qa/ui.md.</li>
@@ -228,9 +228,9 @@
   <div class="kicker">Доказательство</div>
   <h2>Проверено прогонами</h2>
   <div class="cols3">
-    <div class="card accent"><div class="big">96 + 36</div><p>проверок Python и тестов интерфейса прошли</p></div>
+    <div class="card accent"><div class="big">155 + 36</div><p>проверок Python и тестов интерфейса прошли; evals — 40/40 диалогов</p></div>
     <div class="card accent"><div class="big">1 / 1</div><p>браузерный путь на реальных Flask API и PostgreSQL, включая отдельную сессию оператора</p></div>
-    <div class="card accent"><div class="big">89,75%</div><p>покрытие строк доступного кода: 849 из 946 строк, включая AI-модуль</p></div>
+    <div class="card accent"><div class="big">92,78%</div><p>покрытие строк доступного кода: 1182 из 1274 строк, включая AI-модуль (scripts/check.py --release, 2026-11-10)</p></div>
   </div>
   <ul style="margin-top:5mm;">
     <li>Проверка тестов и покрытия: <span class="hl">python scripts/check.py</span>.</li>
@@ -298,7 +298,7 @@
       <p>SDD и источники, оркестрация диалога, LLM-провайдер и деморежим, оценка качества, метрики пилота.</p>
     </div>
   </div>
-  <p class="sub" style="margin-top:8mm;">Репозиторий: https://github.com/Zakatu2000/avito-hack · ветка integration/web1-server · сквозной прогон — по README.</p>
+  <p class="sub" style="margin-top:8mm;">Репозиторий: https://github.com/Zakatu2000/avito-hack · ветка integration/final · сквозной прогон — по README.</p>
   <p class="sub">Демо: Web 1 проходит путь стажёра, Web 2 одобряет и выдаёт право из отдельной сессии, AI объясняет, какие факты изменили ответ.</p>
   <div class="footer" style="color:#9fb0d0;"><span>AI-buddy «Первый PR» · синтетические данные</span><span>12 / 12</span></div>
 </section>
