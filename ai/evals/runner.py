@@ -2,7 +2,7 @@
 
 Usage (from ai/):
     python -m evals.runner                 # offline demo dataset (CI gate)
-    python -m evals.runner --live          # live DeepSeek evals (needs key)
+    python -m evals.runner --live          # live provider evals (needs key)
     python -m evals.runner --dataset path  # custom dataset
 
 Checks per dialog (dataset.json): expected kind/sourceId/aiMode, required and
@@ -166,8 +166,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="AI-buddy offline evals (A5)")
     parser.add_argument("--dataset", default=str(DEFAULT_DATASET))
     parser.add_argument("--live", action="store_true",
-                        help="run providerMode=live entries against real DeepSeek "
-                             "(requires AI_MODE=live and DEEPSEEK_* env)")
+                        help="run providerMode=live entries against the real "
+                             "provider (requires AI_MODE=live and AI_* env)")
     args = parser.parse_args(argv)
 
     dataset = json.loads(Path(args.dataset).read_text(encoding="utf-8"))

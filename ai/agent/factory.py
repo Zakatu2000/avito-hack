@@ -6,7 +6,7 @@ Wire in the server environment:
 
 Server rule (server/app.py): a configured factory means mode "live" and the
 server rejects decisions whose aiMode differs. Therefore set
-BUDDY_AGENT_FACTORY only together with AI_MODE=live (+DEEPSEEK_* config).
+BUDDY_AGENT_FACTORY only together with AI_MODE=live (+AI_* provider config).
 Demo mode is simply the absence of the factory (server-side DemoAgent).
 
 Requires `pip install -e ai` (or PYTHONPATH=ai) so `agent.factory` imports.

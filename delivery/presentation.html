@@ -217,7 +217,7 @@
     <tr><td>Сквозной путь</td><td><span class="tag ok">реально</span> Playwright + Chrome, полный путь через HTTP API</td><td>— (готов)</td></tr>
     <tr><td>API / права</td><td><span class="tag ok">реально</span> Flask API, PostgreSQL, сессии и проверка прав</td><td>Адаптер корпоративной авторизации и сервисов</td></tr>
     <tr><td>Согласование</td><td><span class="tag warn">имитация</span> панель демооператора</td><td>Корпоративный сервис согласования и выдачи прав</td></tr>
-    <tr><td>LLM</td><td><span class="tag ok">подключение проверено</span> 3 синтетических smoke-запроса GLM; по умолчанию demo</td><td>API-ключ и модель для пилота; настройки в ai/README.md</td></tr>
+    <tr><td>LLM</td><td><span class="tag warn">живой вызов не проверен</span> demo по умолчанию; 3 smoke-запроса GLM выполнены ранее предыдущей сборкой, в этой версии кода не перепроверены</td><td>API-ключ и модель для пилота; настройки в ai/README.md</td></tr>
   </table>
   <p class="note">Режим AI всегда виден в интерфейсе (бейдж в шапке). Имитации переключаются переменной окружения без изменения кода экранов.</p>
   <div class="footer"><span>AI-buddy «Первый PR»</span><span>8 / 12</span></div>
@@ -235,7 +235,7 @@
     <li>Проверка тестов и покрытия: <span class="hl">python scripts/check.py</span>.</li>
     <li>Отчёт и условия воспроизведения: <span class="hl">docs/qa/integration.md</span>.</li>
   </ul>
-  <p class="note">macOS, Node 24, Python 3.12, PostgreSQL 16.2, Chrome/Playwright. Внешний GLM: 3/3 smoke, 1,23–1,48 с на запрос. Надёжность на произвольных вопросах требует пилота. Docker ещё предстоит проверить.</p>
+  <p class="note">Живой вызов LLM в финальной сборке не проверен (нет ключа). Исторические 3/3 smoke GLM — предыдущая сборка, 1,23–1,48 с на запрос; в этой версии кода не перепроверялись. Docker проверяется отдельно (см. release.md).</p>
   <div class="footer"><span>AI-buddy «Первый PR»</span><span>9 / 12</span></div>
 </section>
 

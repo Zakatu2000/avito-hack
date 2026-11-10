@@ -52,7 +52,7 @@ BUDDY_AGENT_FACTORY=agent.factory:create_agent
 | `ai/agent/base.py` | Порт `Agent.respond` (sync) | A0.1 → A3 |
 | `ai/agent/policy.py` | Детерминированная policy S01–S12 + `BuddyAgent` (LLM-перефразирование) | A3 |
 | `ai/agent/factory.py` | Фабрика `create_agent` для `BUDDY_AGENT_FACTORY` | A4 |
-| `ai/providers/` | `LLMProvider` (sync), `DemoProvider`, `DeepSeekProvider` | A0 → A4 |
+| `ai/providers/` | `LLMProvider` (sync), `DeepSeekProvider` — OpenAI-совместимый адаптер | A0 → A4 |
 | `ai/server.py` | Опциональный HTTP-адаптер (`/health`, `/internal/ai/respond`) | A0.1 |
 | `ai/tests/` | unit/контрактные тесты; `test_contract_examples.py` валидирует `contracts/examples/*.json` | A0.1+ |
 | `ai/evals/` | офлайн-диалоги (29) и runner | A5 |
@@ -79,10 +79,10 @@ cd ai
 | Переменная | Значение |
 |---|---|
 | `AI_MODE` | `demo` (по умолчанию; без ключа; воспроизводимо) / `live` |
-| `AI_PROVIDER` | `deepseek` / `demo` |
-| `DEEPSEEK_BASE_URL`, `DEEPSEEK_MODEL`, `DEEPSEEK_API_KEY`, `DEEPSEEK_TIMEOUT_SECONDS` | обязательны только для `live` |
+| `AI_PROVIDER` | `openai_compatible` / `demo` (устаревшее `deepseek` принимается) |
+| `AI_BASE_URL`, `AI_MODEL`, `AI_API_KEY`, `AI_TIMEOUT_SECONDS` | любой OpenAI-совместимый chat-completions endpoint; обязательны только для `live`. Алиасы `DEEPSEEK_BASE_URL`/`DEEPSEEK_MODEL`/`DEEPSEEK_API_KEY`/`DEEPSEEK_TIMEOUT_SECONDS` поддерживаются |
 | `BUDDY_AGENT_FACTORY` | import string фабрики агента; задавать только вместе с `AI_MODE=live` |
-| `BUDDY_AGENT_TIMEOUT` | бюджет `AgentRunner` в секундах; должен превышать `DEEPSEEK_TIMEOUT_SECONDS` |
+| `BUDDY_AGENT_TIMEOUT` | бюджет `AgentRunner` в секундах; должен превышать `AI_TIMEOUT_SECONDS` |
 
 Инварианты: `live` без полного конфига — ошибка при старте, не скрытый
 fallback; сбой провайдера — исключение, которое сервер превращает в 503
@@ -93,13 +93,14 @@ fallback; сбой провайдера — исключение, которое
 ## Текущий статус
 
 A0–A6 выполнены: типы контракта, read-only инструменты, детерминированная
-policy S01–S12 (`BuddyAgent`), `DeepSeekProvider` (json_object, один retry на
-пустой ответ, fail-fast по 429/5xx/timeout; по документации api-docs.deepseek.com),
-`DemoProvider` без ключа, фабрика `create_agent` для `BUDDY_AGENT_FACTORY`,
-опциональный HTTP-адаптер, 29 офлайн-диалогов (включая prompt-injection).
-Живой вызов DeepSeek не проверялся — ключа нет (помечено явно, не выдаём за
-проверенное). Реальные smoke-запросы live-классификатора предыдущей сборки
-(10 ноября, 3 синтетические ситуации) зафиксированы в `docs/sdd/cases.md`.
+policy S01–S12 (`BuddyAgent`), OpenAI-совместимый провайдер (`DeepSeekProvider`:
+json_object, один retry на пустой ответ, fail-fast по 429/5xx/timeout),
+фабрика `create_agent` для `BUDDY_AGENT_FACTORY`, опциональный HTTP-адаптер,
+40 офлайн-диалогов (включая prompt-injection и live-моки намерений).
+**Живой вызов провайдера в финальной сборке не проверен** — ключа нет в этой
+сессии (помечено явно, не выдаём за проверенное). Исторические smoke-запросы
+GLM (10 ноября, 3 синтетические ситуации) выполнялись предыдущей сборкой с
+другой реализацией — в этой версии кода не перепроверялись.
 
 ## Handoff
 

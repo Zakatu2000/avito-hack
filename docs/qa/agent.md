@@ -7,7 +7,7 @@
 ```powershell
 cd ai
 ..\.venv\Scripts\python -m evals.runner          # офлайн-набор (CI-гейт)
-..\.venv\Scripts\python -m evals.runner --live   # live DeepSeek, нужен DEEPSEEK_* (отдельный прогон)
+..\.venv\Scripts\python -m evals.runner --live   # live-провайдер, нужны AI_* (отдельный прогон)
 ..\.venv\Scripts\python -m pytest --cov          # unit + контрактные + evals
 ```
 
@@ -46,8 +46,8 @@ cd ai
 
 ## Ограничения и честные оговорки
 
-- Live-прогон DeepSeek **не выполнялся** (нет ключа): `--live` требует
-  `AI_MODE=live` + `DEEPSEEK_*`; механика провайдера покрыта моками
+- Live-прогон провайдера **не выполнялся** (нет ключа): `--live` требует
+  `AI_MODE=live` + `AI_*`; механика провайдера покрыта моками
   (`httpx.MockTransport`), поведенческий live-eval отдельно не измерялся.
 - Доля успешных eval-диалогов — метрика поведения, **не** покрытие строк.
   Покрытие строк ai/ измеряется отдельно: `pytest --cov` (100% на момент A5,

@@ -45,7 +45,7 @@ class DeepSeekProvider:
         if settings.ai_mode == "live" and settings.deepseek_api_key is None:
             # Defensive: Settings validation normally makes this unreachable.
             raise ProviderConfigError(
-                "AI_MODE=live requires DEEPSEEK_API_KEY (see ai/.env.example)"
+                "AI_MODE=live requires AI_API_KEY (see ai/.env.example)"
             )
         self._settings = settings
         self._http = http_client or httpx.Client(
@@ -60,8 +60,8 @@ class DeepSeekProvider:
             and settings.deepseek_api_key
         ):
             raise ProviderConfigError(
-                "Incomplete DeepSeek config: DEEPSEEK_BASE_URL / DEEPSEEK_MODEL / "
-                "DEEPSEEK_API_KEY are required (see ai/.env.example)"
+                "Incomplete provider config: AI_BASE_URL / AI_MODEL / "
+                "AI_API_KEY are required (see ai/.env.example)"
             )
 
         url = settings.deepseek_base_url.rstrip("/") + "/chat/completions"

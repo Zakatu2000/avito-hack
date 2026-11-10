@@ -2,7 +2,7 @@
   "version": "1.0.0",
   "owner": "AI (A5)",
   "providerMode": "demo",
-  "note": "Offline behavioral evals over the deterministic demo policy. Workspaces mirror contracts/examples/* (synthetic demo data, owner: Web 2). Live DeepSeek evals run separately: python -m evals.runner --live (requires DEEPSEEK_* config). Eval pass rate is NOT line coverage.",
+  "note": "Offline behavioral evals over the deterministic demo policy. Workspaces mirror contracts/examples/* (synthetic demo data, owner: Web 2). Live provider evals run separately: python -m evals.runner --live (requires AI_* config). Eval pass rate is NOT line coverage.",
   "workspaces": {
     "initial": {
       "task": {"taskId": "task-01", "title": "Открыть README учебного репозитория", "resourceId": "repo-intro"},
