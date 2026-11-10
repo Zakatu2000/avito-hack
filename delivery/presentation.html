@@ -61,7 +61,7 @@
     <span class="tag">AI · агент и оценка качества</span>
   </div>
   <p class="sub" style="margin-top:8mm;">Все данные синтетические. Учебный пример, не регламент Авито.</p>
-  <p class="sub" style="margin-top:5mm;"><a style="color:#9ecbff" href="https://github.com/Zakatu2000/avito-hack/tree/integration/final">Репозиторий текущей сборки</a> · <a style="color:#9ecbff" href="https://github.com/Zakatu2000/avito-hack/blob/integration/final/delivery/video/demo.webm">Видеодемонстрация</a></p>
+  <p class="sub" style="margin-top:5mm;"><a style="color:#9ecbff" href="https://github.com/Zakatu2000/avito-hack/tree/main">Репозиторий текущей сборки</a> · <a style="color:#9ecbff" href="https://github.com/Zakatu2000/avito-hack/blob/main/delivery/video/demo.webm">Видеодемонстрация</a></p>
   <div class="footer"><span>AI-buddy «Первый PR»</span><span>1 / 12</span></div>
 </section>
 
@@ -218,7 +218,7 @@
     <tr><td>API / права</td><td><span class="tag ok">реально</span> Flask API, PostgreSQL, сессии и проверка прав</td><td>Адаптер корпоративной авторизации и сервисов</td></tr>
     <tr><td>Согласование</td><td><span class="tag warn">имитация</span> панель демооператора</td><td>Корпоративный сервис согласования и выдачи прав</td></tr>
     <tr><td>Чтение права</td><td><span class="tag warn">частично</span> effectiveAccess=unknown в прототипе возникает только при отсутствии назначения; ошибки чтения права из внешней системы не моделируются</td><td>Адаптер системы доступов, возвращающий явный «unknown» при сбое проверки</td></tr>
-    <tr><td>LLM</td><td><span class="tag warn">живой вызов не проверен</span> demo по умолчанию; 3 smoke-запроса GLM выполнены ранее предыдущей сборкой, в этой версии кода не перепроверены</td><td>API-ключ и модель для пилота; настройки в ai/README.md</td></tr>
+    <tr><td>LLM</td><td><span class="tag ok">подключение проверено</span> 3/3 синтетических smoke-запроса DeepSeek, 1,33–2,15 с; решения из фактов сервера; по умолчанию demo</td><td>Полный live-eval на произвольных формулировках — пилот; настройки в ai/README.md</td></tr>
   </table>
   <p class="note">Режим AI всегда виден в интерфейсе (бейдж в шапке). Имитации переключаются переменной окружения без изменения кода экранов.</p>
   <div class="footer"><span>AI-buddy «Первый PR»</span><span>8 / 12</span></div>
@@ -236,7 +236,7 @@
     <li>Проверка тестов и покрытия: <span class="hl">python scripts/check.py</span>.</li>
     <li>Отчёт и условия воспроизведения: <span class="hl">docs/qa/integration.md</span>.</li>
   </ul>
-  <p class="note">Живой вызов LLM в финальной сборке не проверен (нет ключа). Исторические 3/3 smoke GLM — предыдущая сборка, 1,23–1,48 с на запрос; в этой версии кода не перепроверялись. Docker проверяется отдельно (см. release.md).</p>
+  <p class="note">Живой smoke 2026-11-10: DeepSeek, 3/3 запроса, 1,33–2,15 с, решения выведены из фактов (включая формулировку без ключевых слов — intent распознан). Полный live-eval — пилот. Docker проверен (см. release.md).</p>
   <div class="footer"><span>AI-buddy «Первый PR»</span><span>9 / 12</span></div>
 </section>
 
@@ -298,7 +298,7 @@
       <p>SDD и источники, оркестрация диалога, LLM-провайдер и деморежим, оценка качества, метрики пилота.</p>
     </div>
   </div>
-  <p class="sub" style="margin-top:8mm;">Репозиторий: https://github.com/Zakatu2000/avito-hack · ветка integration/final · сквозной прогон — по README.</p>
+  <p class="sub" style="margin-top:8mm;">Репозиторий: https://github.com/Zakatu2000/avito-hack · ветка main · сквозной прогон — по README.</p>
   <p class="sub">Демо: Web 1 проходит путь стажёра, Web 2 одобряет и выдаёт право из отдельной сессии, AI объясняет, какие факты изменили ответ.</p>
   <div class="footer" style="color:#9fb0d0;"><span>AI-buddy «Первый PR» · синтетические данные</span><span>12 / 12</span></div>
 </section>
