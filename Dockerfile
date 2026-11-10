@@ -12,6 +12,9 @@ COPY server/requirements.txt server/requirements.txt
 RUN pip install --no-cache-dir -r server/requirements.txt
 COPY server server
 COPY ai ai
+# The runtime image also runs the in-process AI agent (BUDDY_AGENT_FACTORY);
+# install the ai package with its dependencies, not just its sources.
+RUN pip install --no-cache-dir -e ai
 COPY --from=webbuild /app/web/dist web/dist
 RUN useradd --uid 10001 --create-home buddy
 USER buddy

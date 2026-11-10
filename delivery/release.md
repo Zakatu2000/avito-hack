@@ -13,7 +13,7 @@
 | Презентация PDF и видео | Пересняты 2026-11-10 против реального стенда (Flask+PostgreSQL, demo): видео ~61 с, 1280×800, паузы на ключевых кадрах; пять скриншотов 2560×1600; режим AI виден на экране |
 | SDD AI-функций | docs/sdd/agent.md, sources.md и cases.md; приёмочные диалоги ai/evals/dataset.json (40 офлайн + 18 live) |
 | Пилот и метрики | docs/pilot.md и docs/events.md, замеров эффекта на стажёрах пока нет |
-| Docker | Проверено 2026-11-10 (Windows 11, Docker Desktop): `docker compose up --build -d api` → healthy; сценарий README пройден (вход → предложение → подтверждение → одобрение → выдача → «следующий шаг»). Повторный прогон после правок live-eval 2026-11-11: `docker compose --profile checks run --build --rm checks` → exit 0, покрытие 1187/1279 = 92,81%, все компоненты присутствуют |
+| Docker | Проверено 2026-11-10 (Windows 11, Docker Desktop): `docker compose up --build -d api` → healthy; сценарий README пройден (вход → предложение → подтверждение → одобрение → выдача → «следующий шаг»). Повторный прогон после правок live-eval 2026-11-11: `docker compose --profile checks run --build --rm checks` → exit 0, покрытие 1187/1279 = 92,81%, все компоненты присутствуют. Live-стенд e2e 2026-11-11: тот же сценарий пройден в Docker с `AI_MODE=live` (deepseek-flash, aiMode=live в ответах, идемпотентность подтверждения сохранена); найденный дефект (runtime-образ без зависимостей ai/) исправлен в Dockerfile |
 | Финальная загрузка на платформу | Предстоит команде после общей приёмки |
 
 ## Перед финальной сдачей
