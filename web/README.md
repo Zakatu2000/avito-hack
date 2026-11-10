@@ -1,40 +1,24 @@
-# web/ — клиент AI-buddy «Первый PR»
+# Веб-клиент AI-buddy «Первый PR»
 
-React + TypeScript (Vite). Все обращения к серверу вынесены в один клиент `src/api/`:
+React + TypeScript. Node 22.12+ или 24+. Публичный серверный контракт расположен в ../contracts/openapi.yaml. Файл src/api/types.ts описывает модели экранов; HttpApiClient преобразует ответы API в эти модели.
 
-- `types.ts` — контрактные типы (соответствуют будущему `contracts/openapi.yaml`);
-- `client.ts` — `HttpApiClient` (настоящий сервер) + хранение тестовой сессии;
-- `testAdapter.ts` — `TestApiClient`, тестовый адаптер с тем же контрактом (фикстуры `fixtures.ts` повторяют будущие `contracts/examples/`);
-- `index.ts` — `createClient()` выбирает адаптер по переменной окружения.
+По умолчанию используется HTTP API с HttpOnly-cookie. Локальное хранилище содержит только метаданные для восстановления экрана. Сервер проверяет права независимо от этих метаданных.
 
-## Запуск
+    npm ci
+    npm run dev
 
-```bash
-cd web
-npm install
-npm run dev
-```
+Vite проксирует /api и /demo на http://127.0.0.1:5050. При необходимости задайте VITE_PROXY_TARGET. Сервер запускается по README в корне репозитория. Для общей сборки выполните npm run build; Flask раздаёт web/dist.
 
-По умолчанию `VITE_API_MODE=test`: экран строится из контрактных фикстур, сервер не нужен.
+Учебные аккаунты HTTP-режима: intern-demo, intern-ready, intern-new, operator-demo. Пароль training-only передаётся клиентом для этого учебного входа. Полноценную корпоративную авторизацию подключает серверная интеграция.
 
-Тесты: `npm test` · Сборка: `npm run build`.
+    npm test
+    npm run test:coverage
+    npm run build
 
-## Переключение на настоящий сервер
+Для отдельного режима фронтенд-фикстур выполните VITE_API_MODE=test npm run dev. В нём доступны прежние trainee-vasya и demo-operator. Скрипты capture-screens.mjs и record-demo-video.mjs относятся к этой сборке и ожидают стенд в таком режиме.
 
-1. Создайте `web/.env` (или скопируйте `.env.example`):
+Для проверки настоящего API на отдельной демобазе с исходным состоянием:
 
-```
-VITE_API_MODE=http
-VITE_API_BASE_URL=/api
-VITE_PROXY_TARGET=http://127.0.0.1:8000
-```
+    BUDDY_LIVE_URL=http://127.0.0.1:5050 npx playwright test --config playwright.live.config.ts
 
-2. Перезапустите `npm run dev`. Dev-сервер Vite проксирует `/api/*` на Flask (`VITE_PROXY_TARGET`).
-3. Ожидаемые маршруты: `POST /api/session`, `DELETE /api/session`, `GET /api/workspace`, `POST /api/messages`, `POST /api/proposals/{id}/confirm` — тело и поля по `contracts/openapi.yaml` (пока не опубликован, типы в `src/api/types.ts` являются рабочим черновиком контракта для сверки с B1).
-
-## Тестовые учётные записи (фикстуры)
-
-- `trainee-vasya` — стажёр, задача `TSK-101`, доступ к `git.avito.local/trainee/todo-service` отсутствует;
-- `demo-operator` — демооператор (пустой workspace, без чужих заявок).
-
-Роль пользователя из браузера не передаётся как полномочие: сессия выдаётся сервером, права проверяет сервер.
+Нужен Chrome. Сервер должен иметь BUDDY_DEMO_OPERATOR=1. Тест проверяет две отдельные сессии и изменяет демоданные до выдачи доступа. Повторный запуск требует штатного сброса выделенной демобазы.

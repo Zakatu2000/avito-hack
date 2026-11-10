@@ -3,7 +3,7 @@ import { TestApiClient } from './testAdapter';
 import type { ApiClient } from './types';
 
 export function createClient(): ApiClient {
-  const mode = import.meta.env.VITE_API_MODE ?? 'test';
+  const mode = import.meta.env.VITE_API_MODE ?? 'http';
   if (mode === 'http') {
     return new HttpApiClient(import.meta.env.VITE_API_BASE_URL ?? '/api');
   }

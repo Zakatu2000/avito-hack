@@ -4,10 +4,8 @@ import { HttpApiClient, readStoredSession, storeSession } from './client';
 import { TestApiClient } from './testAdapter';
 import {
   exampleProposal,
-  exampleRequestPending,
   exampleSessionTrainee,
   exampleWorkspaceGranted,
-  exampleWorkspaceInitial,
 } from './fixtures';
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -26,75 +24,49 @@ afterEach(() => {
 });
 
 describe('HttpApiClient', () => {
-  it('getWorkspace отправляет GET /workspace с токеном сессии', async () => {
-    storeSession(exampleSessionTrainee);
-    fetchMock.mockResolvedValue(jsonResponse(200, exampleWorkspaceInitial));
+  const identity = { user: exampleSessionTrainee.user, aiMode: 'demo', demoOperator: true };
+  const wire = { task: { taskId: 'task-01', title: 'README', resourceId: 'repo-intro' },
+    source: null, effectiveAccess: 'missing', request: null, nextStep: 'Запросите доступ' };
+  it('использует cookie и преобразует серверные поля', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, identity)).mockResolvedValueOnce(jsonResponse(200, wire));
     vi.stubGlobal('fetch', fetchMock);
-
-    const client = new HttpApiClient('/api');
-    const workspace = await client.getWorkspace();
-
-    expect(workspace.task?.id).toBe('TSK-101');
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0];
-    expect(String(url)).toBe('/api/workspace');
-    expect(init?.method).toBeUndefined();
-    expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer test-token-vasya');
+    const workspace = await new HttpApiClient().getWorkspace();
+    expect(workspace.task?.id).toBe('task-01');
+    expect(workspace.effectiveAccess).toBe('denied');
+    for (const [, init] of fetchMock.mock.calls) {
+      expect(init?.credentials).toBe('same-origin');
+      expect(new Headers(init?.headers).has('Authorization')).toBe(false);
+    }
   });
-
-  it('401 превращается в SessionExpiredError и очищает сессию', async () => {
-    storeSession(exampleSessionTrainee);
-    fetchMock.mockResolvedValue(jsonResponse(401, { message: 'unauthorized' }));
+  it('подтверждает пустым POST с ключом в заголовке', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, identity)).mockResolvedValueOnce(jsonResponse(200,
+      { ...wire, request: { requestId: 'req-01', requestStatus: 'pending' } }));
     vi.stubGlobal('fetch', fetchMock);
-
-    const client = new HttpApiClient();
-    await expect(client.getWorkspace()).rejects.toBeInstanceOf(SessionExpiredError);
+    const result = await new HttpApiClient().confirmProposal('prop-01', 'stable-key');
+    expect(result.request.id).toBe('req-01');
+    const [url, init] = fetchMock.mock.calls[1];
+    expect(url).toBe('/api/proposals/prop-01/confirm');
+    expect(init?.body).toBeUndefined();
+    expect(new Headers(init?.headers).get('Idempotency-Key')).toBe('stable-key');
+  });
+  it('входит с учебным паролем, хранит метаданные без bearer token', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, wire)).mockResolvedValueOnce(jsonResponse(200, identity));
+    vi.stubGlobal('fetch', fetchMock);
+    await new HttpApiClient().login('intern-demo');
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ username:'intern-demo',password:'training-only' });
+    expect(readStoredSession()?.token).toBe('');
+  });
+  it('401 удаляет локальные метаданные', async () => {
+    storeSession(exampleSessionTrainee);
+    fetchMock.mockResolvedValue(jsonResponse(401, {}));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(new HttpApiClient().getWorkspace()).rejects.toBeInstanceOf(SessionExpiredError);
     expect(readStoredSession()).toBeNull();
   });
-
-  it('ошибка сервера возвращает ApiError с сообщением из тела', async () => {
-    fetchMock.mockResolvedValue(jsonResponse(500, { message: 'Бум' }));
+  it('сетевой сбой даёт NetworkError', async () => {
+    fetchMock.mockRejectedValue(new TypeError('offline'));
     vi.stubGlobal('fetch', fetchMock);
-
-    const client = new HttpApiClient();
-    const promise = client.getWorkspace();
-    await expect(promise).rejects.toMatchObject({ name: 'ApiError', status: 500, message: 'Бум' });
-  });
-
-  it('сетевой сбой превращается в NetworkError', async () => {
-    fetchMock.mockRejectedValue(new TypeError('fetch failed'));
-    vi.stubGlobal('fetch', fetchMock);
-
-    const client = new HttpApiClient();
-    await expect(client.getWorkspace()).rejects.toBeInstanceOf(NetworkError);
-  });
-
-  it('confirmProposal отправляет идентификатор предложения и ключ повтора', async () => {
-    storeSession(exampleSessionTrainee);
-    fetchMock.mockResolvedValue(jsonResponse(200, { request: exampleRequestPending, nextStep: null }));
-    vi.stubGlobal('fetch', fetchMock);
-
-    const client = new HttpApiClient();
-    await client.confirmProposal('PRP-77', 'idem-REQ-2026-0142');
-
-    const [url, init] = fetchMock.mock.calls[0];
-    expect(String(url)).toBe('/api/proposals/PRP-77/confirm');
-    expect(init?.method).toBe('POST');
-    expect(JSON.parse(String(init?.body))).toEqual({ idempotencyKey: 'idem-REQ-2026-0142' });
-  });
-
-  it('login отправляет логин и сохраняет сессию', async () => {
-    fetchMock.mockResolvedValue(jsonResponse(200, exampleSessionTrainee));
-    vi.stubGlobal('fetch', fetchMock);
-
-    const client = new HttpApiClient();
-    const session = await client.login('trainee-vasya');
-
-    expect(session.user.login).toBe('trainee-vasya');
-    expect(readStoredSession()?.user.login).toBe('trainee-vasya');
-    const [url, init] = fetchMock.mock.calls[0];
-    expect(String(url)).toBe('/api/session');
-    expect(JSON.parse(String(init?.body))).toEqual({ login: 'trainee-vasya' });
+    await expect(new HttpApiClient().getWorkspace()).rejects.toBeInstanceOf(NetworkError);
   });
 });
 

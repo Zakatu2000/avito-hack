@@ -53,10 +53,10 @@ def collect():
                 lines[current][int(number)] = int(hits) > 0
         for name, hits in lines.items():
             if (name.startswith("web/src/") and not name.endswith(".d.ts")
-                    and ".test." not in name and ".spec." not in name):
+                    and ".test." not in name and ".spec." not in name and not name.startswith("web/src/test/")):
                 measured[name] = (sum(hits.values()), len(hits))
         sources = [p for p in (web / "src").rglob("*") if p.suffix in (".js", ".jsx", ".ts", ".tsx")
-                   and not p.name.endswith(".d.ts") and ".test." not in p.name and ".spec." not in p.name]
+                   and not p.name.endswith(".d.ts") and ".test." not in p.name and ".spec." not in p.name and "test" not in p.relative_to(web / "src").parts]
         if not sources:
             raise ValueError("Нет исходников web/src")
         for source in sources:

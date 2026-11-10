@@ -2,6 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: 'live-path.spec.ts',
   timeout: 45000,
   fullyParallel: false,
   workers: 1,
@@ -12,7 +13,7 @@ export default defineConfig({
     trace: 'off',
   },
   webServer: {
-    command: 'npm run dev -- --port 5173 --strictPort',
+    command: 'VITE_API_MODE=test npm run dev -- --port 5173 --strictPort',
     url: 'http://127.0.0.1:5173',
     reuseExistingServer: true,
     timeout: 90000,

@@ -7,3 +7,7 @@ reports
 .coverage
 .coverage.*
 work
+**/node_modules
+**/dist
+web/coverage
+web/test-results

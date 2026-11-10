@@ -35,85 +35,106 @@ export function storeSession(session: SessionInfo | null): void {
   }
 }
 
+interface WireWorkspace {
+  task: { taskId: string; title: string; resourceId: string } | null;
+  source: { sourceId: string; excerpt: string } | null;
+  effectiveAccess: 'missing' | 'granted' | 'unknown';
+  request: { requestId: string; requestStatus: 'pending' | 'approved' | 'rejected' } | null;
+  nextStep: string;
+}
+interface WireReply {
+  text: string; aiMode: 'demo' | 'live'; source: WireWorkspace['source'];
+  proposal: { proposalId: string; resourceId: string; summary: string } | null;
+  workspace: WireWorkspace;
+}
+interface Identity {
+  user: SessionInfo['user']; aiMode: 'demo' | 'live'; demoOperator: boolean;
+}
+
 export class HttpApiClient implements ApiClient {
   private readonly baseUrl: string;
+  private identity: Identity | null = null;
 
-  constructor(baseUrl = '/api') {
-    this.baseUrl = baseUrl.replace(/\/+$/, '');
-  }
+  constructor(baseUrl = '/api') { this.baseUrl = baseUrl.replace(/\/+$/, ''); }
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const session = readStoredSession();
     const headers = new Headers(init.headers);
     headers.set('Accept', 'application/json');
-    if (session) headers.set('Authorization', `Bearer ${session.token}`);
     if (init.body !== undefined) headers.set('Content-Type', 'application/json');
-
     let response: Response;
     try {
-      response = await window.fetch(`${this.baseUrl}${path}`, { ...init, headers });
-    } catch {
-      throw new NetworkError();
-    }
-
-    if (response.status === 401) {
-      storeSession(null);
-      throw new SessionExpiredError();
-    }
+      response = await window.fetch(`${this.baseUrl}${path}`, { ...init, headers, credentials: 'same-origin' });
+    } catch { throw new NetworkError(); }
+    if (response.status === 401) { storeSession(null); throw new SessionExpiredError(); }
     if (!response.ok) {
       let message = `Ошибка сервера (${response.status})`;
-      try {
-        const data: unknown = await response.json();
-        if (typeof data === 'object' && data !== null && typeof (data as Record<string, unknown>).message === 'string') {
-          message = (data as Record<string, string>).message;
-        }
-      } catch {
-        throw new ApiError(response.status, message);
-      }
+      try { const data = await response.json(); if (typeof data.message === 'string') message = data.message; }
+      catch { /* Preserve HTTP failure even for a non-JSON body. */ }
       throw new ApiError(response.status, message);
     }
-    return (await response.json()) as T;
+    return response.json() as Promise<T>;
+  }
+
+  private convert(w: WireWorkspace, identity: Identity): Workspace {
+    return {
+      user: identity.user,
+      task: w.task ? { id: w.task.taskId, title: w.task.title, resourceId: w.task.resourceId,
+        resourceName: w.task.resourceId, summary: w.source?.excerpt ?? 'Учебная задача', instruction: null } : null,
+      effectiveAccess: w.effectiveAccess === 'missing' ? 'denied' : w.effectiveAccess,
+      request: w.request ? { id: w.request.requestId, status: w.request.requestStatus,
+        resource: w.task?.resourceId ?? '', purpose: w.task?.title ?? '' } : null,
+      nextStep: { code: w.effectiveAccess === 'granted' ? 'return-to-task' : 'wait',
+        title: w.nextStep, items: [] },
+      aiMode: identity.aiMode === 'live' ? 'real' : 'demo',
+    };
   }
 
   async login(login: string): Promise<SessionInfo> {
-    const session = await this.request<SessionInfo>('/session', {
-      method: 'POST',
-      body: JSON.stringify({ login }),
+    await this.request<WireWorkspace>('/session', {
+      method: 'POST', body: JSON.stringify({ username: login, password: 'training-only' }),
     });
+    this.identity = await this.request<Identity>('/session');
+    // Local storage keeps presentation metadata. Authentication uses HttpOnly cookie.
+    const session = { token: '', user: this.identity.user };
     storeSession(session);
     return session;
   }
 
   async logout(): Promise<void> {
-    try {
-      await this.request('/session', { method: 'DELETE' });
-    } finally {
-      storeSession(null);
-    }
+    try { await this.request('/session', { method: 'DELETE' }); }
+    finally { this.identity = null; storeSession(null); }
   }
 
-  getWorkspace(): Promise<Workspace> {
-    return this.request<Workspace>('/workspace');
+  async getWorkspace(): Promise<Workspace> {
+    this.identity = await this.request<Identity>('/session');
+    return this.convert(await this.request<WireWorkspace>('/workspace'), this.identity);
   }
 
-  sendMessage(text: string): Promise<MessageReply> {
-    return this.request<MessageReply>('/messages', {
-      method: 'POST',
-      body: JSON.stringify({ text }),
-    });
+  async sendMessage(text: string): Promise<MessageReply> {
+    const identity = await this.request<Identity>('/session');
+    const reply = await this.request<WireReply>('/messages', { method: 'POST', body: JSON.stringify({ text }) });
+    const workspace = this.convert(reply.workspace, { ...identity, aiMode: reply.aiMode });
+    return {
+      type: reply.proposal ? 'proposal' : workspace.request ? 'request-status' : 'text',
+      text: reply.text, source: reply.source?.excerpt ?? null,
+      proposal: reply.proposal ? { id: reply.proposal.proposalId, resource: reply.proposal.resourceId,
+        purpose: reply.proposal.summary, action: reply.proposal.summary,
+        idempotencyKey: crypto.randomUUID() } : null,
+      request: workspace.request, nextStep: workspace.nextStep, aiMode: workspace.aiMode,
+    };
   }
 
-  confirmProposal(proposalId: string, idempotencyKey: string): Promise<ConfirmResult> {
-    return this.request<ConfirmResult>(`/proposals/${encodeURIComponent(proposalId)}/confirm`, {
-      method: 'POST',
-      body: JSON.stringify({ idempotencyKey }),
-    });
+  async confirmProposal(id: string, key: string): Promise<ConfirmResult> {
+    const identity = await this.request<Identity>('/session');
+    const wire = await this.request<WireWorkspace>(`/proposals/${encodeURIComponent(id)}/confirm`,
+      { method: 'POST', headers: { 'Idempotency-Key': key } });
+    const workspace = this.convert(wire, identity);
+    if (!workspace.request) throw new ApiError(502, 'Сервис не вернул заявку');
+    return { request: workspace.request, nextStep: workspace.nextStep };
   }
 
-  reportTaskReturn(taskId: string, requestId: string | null): Promise<void> {
-    return this.request<void>('/events', {
-      method: 'POST',
-      body: JSON.stringify({ name: 'task_returned', taskId, requestId }),
-    });
+  async reportTaskReturn(taskId: string, requestId: string | null): Promise<void> {
+    await this.request('/events', { method: 'POST',
+      body: JSON.stringify({ name: 'task_link_opened', taskId, requestId }) });
   }
 }

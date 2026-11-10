@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Первый PR — публичный API
-  version: 1.2.0
+  version: 1.3.0
 security:
 - demoSession: []
 paths:
@@ -25,7 +25,7 @@ paths:
               schema:
                 type: string
                 minLength: 1
-        '400':
+        '400': &id003
           description: Проверьте ввод
           content:
             application/json:
@@ -62,6 +62,40 @@ paths:
               login:
                 externalValue: ./examples/login.json
       security: []
+    get:
+      summary: Получить идентичность текущей сессии
+      responses:
+        '200':
+          description: Успех
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Identity'
+        '401': &id001
+          description: Войдите снова
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                session_expired:
+                  externalValue: ./examples/session_expired.json
+        '503': &id002
+          description: Сервис временно недоступен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                unavailable:
+                  externalValue: ./examples/unavailable.json
+    delete:
+      summary: Завершить сессию на сервере
+      responses:
+        '200':
+          description: Сессия завершена
+        '401': *id001
+        '503': *id002
   /api/workspace:
     get:
       operationId: getWorkspace
@@ -84,16 +118,8 @@ paths:
                   externalValue: ./examples/granted.json
                 rejected:
                   externalValue: ./examples/rejected.json
-        '401':
-          description: Войдите снова
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              examples:
-                session_expired:
-                  externalValue: ./examples/session_expired.json
-        '403':
+        '401': *id001
+        '403': &id004
           description: Операция недоступна
           content:
             application/json:
@@ -102,15 +128,7 @@ paths:
               examples:
                 forbidden:
                   externalValue: ./examples/forbidden.json
-        '503':
-          description: Сервис временно недоступен
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              examples:
-                unavailable:
-                  externalValue: ./examples/unavailable.json
+        '503': *id002
   /api/messages:
     post:
       operationId: sendMessage
@@ -183,11 +201,11 @@ paths:
     post:
       operationId: confirmProposal
       summary: Подтвердить предложение и получить сохранённое состояние
-      description: >-
-        Отправляйте пустое тело и один Idempotency-Key. При повторе подтверждения
+      description: Отправляйте пустое тело и один Idempotency-Key. При повторе подтверждения
         request содержит исходный номер заявки и её текущий статус. GET /api/workspace
         показывает актуальную заявку по назначению. Чужое или неизвестное предложение
-        даёт одинаковый 403; устаревший контекст или повтор ключа с другим предложением — 409.
+        даёт одинаковый 403; устаревший контекст или повтор ключа с другим предложением
+        — 409.
       responses:
         '200':
           description: Успех
@@ -257,8 +275,24 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-          pattern: '^[!-+\--~]+$'
+          pattern: ^[!-+\--~]+$
         example: confirm-c43ea025-8bb2-4237-905b-305aefaafd6b
+  /api/events:
+    post:
+      summary: Зафиксировать намерение вернуться к задаче после выдачи доступа
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskReturnInput'
+      responses:
+        '200':
+          description: Событие записано
+        '400': *id003
+        '401': *id001
+        '403': *id004
+        '503': *id002
 components:
   securitySchemes:
     demoSession:
@@ -429,3 +463,52 @@ components:
           enum:
           - live
           - demo
+    SessionUser:
+      type: object
+      required:
+      - id
+      - login
+      - displayName
+      - role
+      additionalProperties: false
+      properties:
+        id: &id005
+          type: string
+          minLength: 1
+        login: *id005
+        displayName: *id005
+        role:
+          enum:
+          - trainee
+          - operator
+    Identity:
+      type: object
+      required:
+      - user
+      - aiMode
+      - demoOperator
+      additionalProperties: false
+      properties:
+        user:
+          $ref: '#/components/schemas/SessionUser'
+        aiMode:
+          enum:
+          - demo
+          - live
+        demoOperator:
+          type: boolean
+    TaskReturnInput:
+      type: object
+      required:
+      - name
+      - taskId
+      - requestId
+      additionalProperties: false
+      properties:
+        name:
+          const: task_link_opened
+        taskId: *id005
+        requestId:
+          anyOf:
+          - *id005
+          - type: 'null'

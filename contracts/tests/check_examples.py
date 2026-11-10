@@ -19,11 +19,13 @@ def main():
             if "requestBody" in operation:
                 bodies.append(operation["requestBody"])
             for body in bodies:
-                media = body["content"]["application/json"]
+                media = body.get("content", {}).get("application/json")
+                if not media:
+                    continue
                 validator = Draft202012Validator({
                     "components": spec["components"], **media["schema"]
                 })
-                for example in media["examples"].values():
+                for example in media.get("examples", {}).values():
                     path = (ROOT / example["externalValue"]).resolve()
                     validator.validate(json.loads(path.read_text()))
                     checked.add(path)

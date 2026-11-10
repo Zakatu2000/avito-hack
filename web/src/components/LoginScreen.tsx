@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ApiClient, SessionInfo } from '../api/types';
+import { HttpApiClient } from '../api/client';
 import { exampleSessions } from '../api/fixtures';
 
 const roleLabels: Record<string, string> = {
@@ -30,6 +31,11 @@ export function LoginScreen({ client, onLogin, expired }: LoginScreenProps) {
     }
   }
 
+  const sessions = client instanceof HttpApiClient
+    ? ['intern-demo', 'intern-ready', 'intern-new', 'operator-demo'].map((login) => ({
+        user: { login, displayName: login, role: login === 'operator-demo' ? 'operator' : 'trainee' },
+      })) : exampleSessions;
+
   return (
     <main className="login-wrap">
       <section className="card login-card" aria-labelledby="login-title">
@@ -43,7 +49,7 @@ export function LoginScreen({ client, onLogin, expired }: LoginScreenProps) {
           </div>
         )}
         <div className="btn-col">
-          {exampleSessions.map((session) => (
+          {sessions.map((session) => (
             <button
               key={session.user.login}
               className="btn btn-primary"

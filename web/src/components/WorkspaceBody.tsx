@@ -1,3 +1,5 @@
+import { HttpApiClient } from '../api/client';
+import { HttpOperatorPanel } from './HttpOperatorPanel';
 import type { ApiClient, Workspace } from '../api/types';
 import { ChatPanel } from './ChatPanel';
 import { NextStepCard, ProgressCard } from './ProgressCard';
@@ -14,7 +16,7 @@ export function WorkspaceBody({ workspace, client, onRefresh, refreshing }: Work
   if (workspace.task === null) {
     return (
       <>
-        {workspace.user.role === 'operator' && <DemoPanel client={client} />}
+        {workspace.user.role === 'operator' && (client instanceof HttpApiClient ? <HttpOperatorPanel /> : <DemoPanel client={client} />)}
         <section className="card empty-card" aria-live="polite">
           <p>Задача пока не назначена.</p>
           <p className="muted">

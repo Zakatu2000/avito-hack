@@ -2,9 +2,10 @@
 import hashlib
 import os
 import secrets
+from pathlib import Path
 
 import psycopg
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from psycopg.rows import dict_row
 from werkzeug.utils import import_string
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -154,6 +155,16 @@ def create_app(config=None):
         }[error.status_code]
         return jsonify(code=code, message=message), error.status_code
 
+    web_build = Path(__file__).resolve().parents[1] / "web" / "dist"
+    if web_build.is_dir():
+        @app.get("/")
+        def index():
+            return send_from_directory(web_build, "index.html")
+
+        @app.get("/assets/<path:filename>")
+        def assets(filename):
+            return send_from_directory(web_build / "assets", filename)
+
     @app.get("/health")
     def health():
         with connect() as conn:
@@ -196,6 +207,50 @@ def create_app(config=None):
         response.set_cookie(COOKIE, token, max_age=SESSION_SECONDS, httponly=True,
                             secure=request.is_secure, samesite="Strict")
         return response
+
+    @app.route("/api/session", methods=["GET", "DELETE"])
+    def current_session():
+        token = request.cookies.get(COOKIE)
+        if not token:
+            return expired()
+        with connect() as conn:
+            user_id = session_user_id(conn, token)
+            if not user_id:
+                return expired()
+            if request.method == "DELETE":
+                conn.execute("DELETE FROM sessions WHERE token_hash=%s", (token_hash(token),))
+                response = jsonify(loggedOut=True)
+                response.delete_cookie(COOKIE)
+                return response
+            user = conn.execute("SELECT id, username, role FROM users WHERE id=%s", (user_id,)).fetchone()
+            return jsonify(user=dict(id=user["id"], login=user["username"],
+                                     displayName=user["username"],
+                                     role="operator" if user["role"]=="operator" else "trainee"),
+                           aiMode=mode, demoOperator=app.config["DEMO_OPERATOR"])
+
+    @app.post("/api/events")
+    def task_returned():
+        token = request.cookies.get(COOKIE)
+        if not token:
+            return expired()
+        with connect() as conn:
+            user_id = session_user_id(conn, token)
+            if not user_id:
+                return expired()
+            payload = request.get_json(silent=True)
+            if (not isinstance(payload, dict) or set(payload) != {"name", "taskId", "requestId"}
+                    or payload["name"] != "task_link_opened"):
+                return jsonify(code="invalid_input", message="Проверьте ввод"), 400
+            state = read_workspace(conn, user_id, lock=True)
+            if (not state["task"] or state["task"]["taskId"] != payload["taskId"]
+                    or state["effectiveAccess"] != "granted"
+                    or payload["requestId"] != (state["request"]["requestId"] if state["request"] else None)):
+                return jsonify(code="forbidden", message="Операция недоступна"), 403
+            conn.execute("""
+                INSERT INTO onboarding_events(assignment_id,name)
+                VALUES (%s,'task_link_opened') ON CONFLICT DO NOTHING
+            """, (state["task"]["taskId"],))
+            return jsonify(recorded=True)
 
     @app.get("/api/workspace")
     def workspace():
