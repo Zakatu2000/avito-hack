@@ -1,32 +1,61 @@
 # AI-контур AI-buddy «Первый PR» (Hack&Change 2026)
 
-Изолированный stateless Python-сервис агента. Вызывается **только** backend-сервером
-через `POST /internal/ai/respond` с доверенным `AgentContext`.
+Пакет агента для backend-сервера команды (Flask + PostgreSQL). Контракт —
+**командный, уже зафиксирован**: `contracts/agent.md` v1.0.0 и
+`contracts/openapi.yaml` v1.3.0 (владелец — Web 2, задача B1). AI-зона
+зеркалит контракт типами и не создаёт параллельных несовместимых схем.
 
 ## Граница ответственности
 
-AI **не делает** и не может: выдавать/отзывать права; создавать/подтверждать заявки;
-менять `requestStatus`/`effectiveAccess`; подключаться к PostgreSQL; принимать
-browser cookies; читать произвольные ресурсы; считать ответ LLM доказательством
-фактического действия. AI читает доверенные факты и формирует типизированный
-`AgentResult`; запись и проверка подтверждения принадлежат серверу.
+AI **не делает** и не может: выдавать/отзывать права; создавать/подтверждать
+заявки; генерировать `proposalId`/`requestId`/статусы; менять
+`requestStatus`/`effectiveAccess`; подключаться к PostgreSQL; принимать
+browser cookies; читать произвольные ресурсы; считать ответ LLM
+доказательством фактического действия. AI читает факты через разрешённые
+read-only инструменты и возвращает типизированное решение; запись и проверка
+подтверждения принадлежат серверу.
+
+## Интеграция (in-process, основной путь)
+
+Сервер вызывает агента синхронно в пуле потоков `AgentRunner` (тайм-аут 10 с,
+семафор 4, валидация решения), см. `server/dialog.py`:
+
+```python
+# contracts/agent.md v1.0.0
+Agent.respond(text: str, tools: ScopedReadTools) -> {"kind", "text", "sourceId", "aiMode"}
+```
+
+Подключение (Web 2, B4): сервер подхватывает фабрику из переменной
+`BUDDY_AGENT_FACTORY` (import string, вызывается без аргументов):
+
+```text
+BUDDY_AGENT_FACTORY=agent.factory:create_agent   # появится в A3/A4
+```
+
+**Правило согласованности режима:** сервер считает режим `live`, если фабрика
+задана, иначе `demo`, и отклоняет решение с несовпадающим `aiMode`. Поэтому
+`BUDDY_AGENT_FACTORY` задаём только вместе с `AI_MODE=live`; демо —
+это отсутствие фабрики (server-side `DemoAgent`), либо локальный запуск этого
+пакета. Скрытая подмена режима исключена валидацией на стороне сервера.
+
+Инструменты чтения (строит сервер, без userId, скоуп — текущее назначение):
+`current_task()`, `instruction()`, `effective_access()` → `missing|granted|unknown`,
+`current_request()`. Скрытый и отсутствующий объект читаются одинаково пусто;
+ошибка чтения права — `unknown`, а не «права нет».
 
 ## Структура
 
 | Путь | Назначение | Задача |
 |---|---|---|
-| `ai/context/models.py` | Pydantic-модели входа/выхода (временный контракт) | A0 → A2 |
-| `ai/agent/base.py` | Порт `Agent.respond` | A0 → A3 |
-| `ai/providers/` | `LLMProvider`, `DemoProvider`, `DeepSeekProvider` | A0 → A4 |
-| `ai/server.py` | FastAPI-адаптер, `/health`, `/internal/ai/respond` | A0 |
-| `ai/tests/` | unit/контрактные тесты (LLM всегда замокан) | A0+ |
+| `ai/context/models.py` | Типы контракта: `Workspace`, `Task`, `Source`, `Ticket`, `AgentDecision` | A0.1 |
+| `ai/context/tools.py` | `ScopedReadTools`, `WorkspaceTools`, адаптер `wrap_tools` | A0.1 → A2 |
+| `ai/agent/base.py` | Порт `Agent.respond` (sync) | A0.1 → A3 |
+| `ai/agent/stub.py` | `StubAgent` — честная заглушка до A3 | A0.1 |
+| `ai/providers/` | `LLMProvider` (sync), `DemoProvider`, `DeepSeekProvider` | A0 → A4 |
+| `ai/server.py` | Опциональный HTTP-адаптер (`/health`, `/internal/ai/respond`) | A0.1 |
+| `ai/tests/` | unit/контрактные тесты; `test_contract_examples.py` валидирует `contracts/examples/*.json` | A0.1+ |
 | `ai/evals/` | офлайн-диалоги и runner | A5 |
 | `docs/sdd/` | SDD: `sources.md`, `cases.md`, `agent.md` | A1 |
-
-> **Временная типизированная фикстура.** Каталога `contracts/` ещё нет (это задача
-> B1 команды). До его появления единственный источник типов — `ai/context/models.py`
-> (camelCase, помечен как PROVISIONAL). Параллельный контракт не создаём; после
-> публикации B1 имена полей сверяются и правятся здесь.
 
 ## Быстрый старт (Windows, из корня репозитория)
 
@@ -35,7 +64,7 @@ python -m venv .venv
 .\.venv\Scripts\python -m pip install -e "ai[dev]"
 cd ai
 ..\.venv\Scripts\python -m pytest --cov --cov-report=term-missing   # тесты + покрытие (цель >= 90%)
-..\.venv\Scripts\python -m uvicorn server:app --reload --port 8100  # локальный запуск
+..\.venv\Scripts\python -m uvicorn server:app --reload --port 8100  # опциональный HTTP-адаптер
 ```
 
 Проверка: `curl http://127.0.0.1:8100/health` → `{"status":"ok"}`.
@@ -44,27 +73,28 @@ cd ai
 ## Режимы и переменные окружения
 
 Шаблон — `ai/.env.example` (копировать в `ai/.env`, в git не коммитить).
+Для общего запуска Web 2 добавляет переменные в корневой `.env.example` (B6).
 
 | Переменная | Значение |
 |---|---|
-| `AI_MODE` | `demo` (по умолчанию; без ключа; воспроизводимо; `aiMode=demo`) / `live` |
+| `AI_MODE` | `demo` (по умолчанию; без ключа; воспроизводимо) / `live` |
 | `AI_PROVIDER` | `deepseek` / `demo` |
 | `DEEPSEEK_BASE_URL`, `DEEPSEEK_MODEL`, `DEEPSEEK_API_KEY`, `DEEPSEEK_TIMEOUT_SECONDS` | обязательны только для `live` |
 
-Инварианты режимов: `live` без полного конфига — ошибка при старте, а не скрытый
-fallback; сбой провайдера — явное `provider_unavailable`, без ложного успеха.
-Ключи не коммитим и не логируем.
+Инварианты: `live` без полного конфига — ошибка при старте, не скрытый
+fallback; сбой провайдера — исключение, которое сервер превращает в 503
+(`unavailable`), без ложного успеха. Ключи не коммитим и не логируем.
 
-## Текущий статус (после A0)
+## Текущий статус
 
-Сервис возвращает типизированную заглушку `errorCode=agent_not_implemented` —
-это честный маркер, а не фальшивый успех. Бизнес-логика появляется в A2–A4.
+A0/A0.1: типы контракта, порт, read-only инструменты, stub-агент, провайдеры-
+скелеты, HTTP-адаптер. Оркестрация диалога — A3. Ответ stub-агента —
+валидный `kind=clarify` с явной пометкой, не фальшивый успех.
 
 ## Handoff
 
-- **B4**: порт и схема обмена — `POST /internal/ai/respond`, запрос
-  `AgentRespondRequest {context, userMessage}`, ответ `AgentResult` (camelCase);
-  примеры — `ai/tests/conftest.py::base_context_payload`.
-- **F3**: тексты и типы действий (`actionType`) — после A3.
-- **B6**: команды запуска/тестов/покрытия выше; AI-сервис запускается отдельно
-  от backend, режим по умолчанию — `demo`.
+- **B4**: фабрика агента и примечания по режимам — выше; контрактные примеры
+  валидируются тестом `ai/tests/test_contract_examples.py`.
+- **F3**: тексты и виды решений (`kind`) — после A3.
+- **B6**: команды запуска/тестов/покрытия выше; покрытие ai/ считается
+  отдельно от server/ и суммируется без двойного учёта.

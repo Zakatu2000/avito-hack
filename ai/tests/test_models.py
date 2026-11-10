@@ -1,56 +1,79 @@
-"""Provisional-contract models: aliases, fact states, security invariants."""
+"""Contract models: aliases, vocabularies, AgentDecision wire form."""
 
 import pytest
 from pydantic import ValidationError
 
 from context.models import (
-    AgentContext,
-    AgentResult,
+    AgentDecision,
     AiMode,
+    DecisionKind,
     EffectiveAccess,
-    FactState,
     RequestStatus,
-    TaskFact,
+    Task,
+    Ticket,
+    Workspace,
 )
 
 
-def test_context_accepts_camel_case_and_defaults(base_context_payload: dict) -> None:
-    context = AgentContext.model_validate(base_context_payload)
-    assert context.task.task_id == "task-0001"
-    # Defaults make missing request data an explicit state, not a negative claim.
-    assert context.request.request_status == RequestStatus.NONE
-    assert context.access.effective_access == EffectiveAccess.NONE
+def test_workspace_accepts_contract_camel_case(workspace_initial: dict) -> None:
+    workspace = Workspace.model_validate(workspace_initial)
+    assert workspace.task is not None
+    assert workspace.task.task_id == "task-01"
+    assert workspace.source is not None
+    assert workspace.source.source_id == "demo-guide"
+    assert workspace.effective_access is EffectiveAccess.MISSING
+    assert workspace.request is None
 
 
-def test_context_serializes_back_to_camel_case(base_context_payload: dict) -> None:
-    context = AgentContext.model_validate(base_context_payload)
-    dumped = context.model_dump(by_alias=True)
-    assert dumped["task"]["taskId"] == "task-0001"
-    assert dumped["access"]["effectiveAccess"] == "none"
-    assert dumped["request"]["requestStatus"] == "none"
+def test_workspace_serializes_back_to_camel_case(workspace_initial: dict) -> None:
+    workspace = Workspace.model_validate(workspace_initial)
+    assert workspace.model_dump(by_alias=True) == workspace_initial
 
 
 def test_unknown_is_not_a_negative_claim() -> None:
-    # "no data" and "checked, absent" are different states (plan.md A2).
-    assert FactState.UNKNOWN != FactState.KNOWN
-    assert EffectiveAccess.UNKNOWN != EffectiveAccess.NONE
-    assert RequestStatus.UNKNOWN != RequestStatus.NONE
+    # contracts/agent.md: an access read error yields "unknown" and must not
+    # be interpreted as "missing" (no right).
+    assert EffectiveAccess.UNKNOWN != EffectiveAccess.MISSING
+    assert EffectiveAccess.UNKNOWN != EffectiveAccess.GRANTED
+
+
+def test_contract_vocabularies() -> None:
+    # openapi.yaml enums, exact wire values.
+    assert {s.value for s in EffectiveAccess} == {"unknown", "missing", "granted"}
+    assert {s.value for s in RequestStatus} == {"pending", "approved", "rejected"}
+    assert {k.value for k in DecisionKind} == {
+        "answer",
+        "clarify",
+        "propose_access",
+        "handoff",
+    }
+    assert {m.value for m in AiMode} == {"demo", "live"}
 
 
 def test_extra_fields_are_forbidden() -> None:
     with pytest.raises(ValidationError):
-        TaskFact.model_validate({"state": "known", "role": "admin"})
+        Task.model_validate(
+            {"taskId": "t", "title": "t", "resourceId": "r", "role": "admin"}
+        )
 
 
-def test_context_has_no_identity_or_role_fields() -> None:
-    # Identity arrives only via the server-trusted context; never from the
-    # user message or request body.
-    forbidden = {"role", "roles", "permissions", "isAdmin", "user"}
-    assert forbidden.isdisjoint(AgentContext.model_fields)
+def test_decision_wire_has_exactly_the_server_validated_keys() -> None:
+    decision = AgentDecision(
+        kind=DecisionKind.ANSWER, text="ok", source_id=None, ai_mode=AiMode.DEMO
+    )
+    wire = decision.as_wire()
+    assert set(wire) == {"kind", "text", "sourceId", "aiMode"}
+    assert wire["kind"] == "answer"
+    assert wire["aiMode"] == "demo"
 
 
-def test_agent_result_requires_ai_mode() -> None:
+def test_decision_rejects_blank_text() -> None:
     with pytest.raises(ValidationError):
-        AgentResult.model_validate({"text": "t"})
-    result = AgentResult.model_validate({"text": "t", "aiMode": "demo"})
-    assert result.ai_mode is AiMode.DEMO
+        AgentDecision(
+            kind=DecisionKind.ANSWER, text="   ", source_id=None, ai_mode=AiMode.DEMO
+        )
+
+
+def test_ticket_statuses() -> None:
+    ticket = Ticket.model_validate({"requestId": "req-01", "requestStatus": "approved"})
+    assert ticket.request_status is RequestStatus.APPROVED

@@ -1,4 +1,8 @@
-"""Provider interface and typed errors (task A0 skeleton; behavior in A4).
+"""Provider interface and typed errors (task A4; skeleton aligned in A0.1).
+
+Synchronous: the agent runs inside the server's AgentRunner thread pool
+(contracts/agent.md, server/dialog.py). Providers never create per-call
+clients - a process-wide httpx.Client is injected by the factory (A4).
 
 DemoProvider and DeepSeekProvider must pass the SAME contract tests, so the
 demo mode stays a faithful rehearsal of the live path.
@@ -13,14 +17,14 @@ class LLMRequest(ContractModel):
     """Everything a provider may see.
 
     `facts` is a pre-filtered serialization of trusted facts: no secrets, no
-    internal roles, no unfiltered instruction texts (filtering is task A2).
+    internal roles, no unfiltered instruction texts (filtering is task A2/A3).
     """
 
     system_policy: str
     facts: str
     user_message: str
     max_output_tokens: int = 800
-    timeout_seconds: float = 15.0
+    timeout_seconds: float = 10.0
 
 
 class LLMResponse(ContractModel):
@@ -30,13 +34,13 @@ class LLMResponse(ContractModel):
 
 
 class LLMProvider(Protocol):
-    async def complete(self, request: LLMRequest) -> LLMResponse:
+    def complete(self, request: LLMRequest) -> LLMResponse:
         """Single completion call. Retries/timeouts are the impl's concern."""
         ...
 
 
 class ProviderError(RuntimeError):
-    """Base typed provider error; error_code is part of AgentResult."""
+    """Base typed provider error; error_code is part of the surfaced state."""
 
     def __init__(self, message: str, *, error_code: str) -> None:
         super().__init__(message)

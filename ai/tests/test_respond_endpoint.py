@@ -1,48 +1,41 @@
-"""POST /internal/ai/respond: typed A0 stub over the provisional contract."""
+"""POST /internal/ai/respond (optional HTTP adapter): contract-shaped I/O."""
 
 from fastapi.testclient import TestClient
 
+DECISION_KEYS = {"kind", "text", "sourceId", "aiMode"}
 
-def test_respond_returns_typed_stub(client: TestClient, respond_payload: dict) -> None:
+
+def test_respond_returns_valid_decision(client: TestClient, respond_payload: dict) -> None:
     response = client.post("/internal/ai/respond", json=respond_payload)
     assert response.status_code == 200
     body = response.json()
-    # camelCase wire format per team agreement.
-    for key in (
-        "text",
-        "source",
-        "nextStep",
-        "actionType",
-        "requestStatus",
-        "effectiveAccess",
-        "aiMode",
-        "errorCode",
-    ):
-        assert key in body, key
-    # Explicit stub: never a fake success.
-    assert body["errorCode"] == "agent_not_implemented"
+    assert set(body) == DECISION_KEYS
+    assert body["kind"] == "clarify"  # A0/A0.1 stub; orchestration lands in A3
     assert body["aiMode"] == "demo"
-    assert body["actionType"] == "none"
-    # Trusted facts are echoed from the context, not invented.
-    assert body["effectiveAccess"] == "none"
-    assert body["requestStatus"] == "none"
+    assert body["sourceId"] is None
 
 
-def test_respond_rejects_missing_context(client: TestClient) -> None:
-    response = client.post("/internal/ai/respond", json={"userMessage": "hi"})
+def test_respond_rejects_missing_workspace(client: TestClient) -> None:
+    response = client.post("/internal/ai/respond", json={"text": "hi"})
     assert response.status_code == 422
 
 
-def test_respond_rejects_empty_message(
-    client: TestClient, respond_payload: dict
-) -> None:
-    respond_payload["userMessage"] = ""
+def test_respond_rejects_empty_text(client: TestClient, respond_payload: dict) -> None:
+    respond_payload["text"] = ""
     assert client.post("/internal/ai/respond", json=respond_payload).status_code == 422
 
 
 def test_respond_rejects_unknown_fields(
     client: TestClient, respond_payload: dict
 ) -> None:
-    # A fake role must be a validation error, never an authority (task A2).
+    # A fake role must be a validation error, never an authority (contract:
+    # trusted identifiers never arrive inside the user text).
     respond_payload["role"] = "admin"
+    assert client.post("/internal/ai/respond", json=respond_payload).status_code == 422
+
+
+def test_respond_rejects_invalid_access_value(
+    client: TestClient, respond_payload: dict
+) -> None:
+    respond_payload["workspace"]["effectiveAccess"] = "granted-ish"
     assert client.post("/internal/ai/respond", json=respond_payload).status_code == 422

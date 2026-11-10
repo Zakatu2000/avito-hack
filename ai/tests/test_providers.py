@@ -24,23 +24,22 @@ def make_request() -> LLMRequest:
     )
 
 
-async def test_demo_provider_is_deterministic_and_keyless() -> None:
+def test_demo_provider_is_deterministic_and_keyless() -> None:
     provider = DemoProvider()
-    first = await provider.complete(make_request())
-    second = await provider.complete(make_request())
+    first = provider.complete(make_request())
+    second = provider.complete(make_request())
     assert first == second
     assert first.ai_mode is AiMode.DEMO
     assert first.finish_reason == "stop"
     payload = json.loads(first.content)
-    assert set(payload) == {"text", "actionType", "nextStep", "usedSource"}
+    assert set(payload) == {"kind", "text"}
 
 
-async def test_deepseek_complete_is_a_typed_skeleton_error() -> None:
+def test_deepseek_complete_is_a_typed_skeleton_error() -> None:
     settings = Settings(_env_file=None, ai_mode="demo")
-    async with httpx.AsyncClient() as client:
-        provider = DeepSeekProvider(settings, client)
-        with pytest.raises(ProviderUnavailableError) as exc_info:
-            await provider.complete(make_request())
+    provider = DeepSeekProvider(settings)
+    with pytest.raises(ProviderUnavailableError) as exc_info:
+        provider.complete(make_request())
     assert exc_info.value.error_code == "provider_unavailable"
 
 
@@ -49,7 +48,7 @@ def test_deepseek_rejects_live_mode_without_key() -> None:
     settings = Settings(_env_file=None, ai_mode="demo")
     settings.ai_mode = "live"
     with pytest.raises(ProviderConfigError) as exc_info:
-        DeepSeekProvider(settings, httpx.AsyncClient())
+        DeepSeekProvider(settings, httpx.Client())
     assert exc_info.value.error_code == "provider_config_error"
 
 

@@ -1,33 +1,33 @@
-"""FastAPI adapter of the AI service (task A0).
+"""OPTIONAL FastAPI adapter of the AI service (standalone runs / debugging).
 
-Endpoints:
+Primary integration is IN-PROCESS: the Flask server loads the agent via the
+BUDDY_AGENT_FACTORY import string and calls Agent.respond inside AgentRunner
+(contracts/agent.md). This HTTP adapter mirrors the same contract for local
+development and does not add a parallel one:
+
 - GET  /health               - liveness only; reveals NO configuration;
-- POST /internal/ai/respond  - typed Agent.respond port (stub until task A3).
+- POST /internal/ai/respond  - body {text, workspace} (openapi.yaml Workspace),
+                               returns the raw AgentDecision dict.
 
-The service is internal: it is called by the backend server with a trusted
-AgentContext. It never sees browser cookies, never connects to PostgreSQL
-and never mutates requests/rights (the server owns all writes).
+The service is internal: it never sees browser cookies, never connects to
+PostgreSQL and never mutates requests/rights (the server owns all writes).
+The sync agent runs in the threadpool so the event loop is never blocked.
 
 Run from this directory:
     uvicorn server:app --reload --port 8100
 """
 
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from typing import Any
 
-import httpx
 from fastapi import FastAPI
+from fastapi.concurrency import run_in_threadpool
 
-from context.models import (
-    ActionType,
-    AgentRespondRequest,
-    AgentResult,
-    ContractModel,
-    SourceType,
-)
+from agent.stub import StubAgent
+from context.models import AgentRespondRequest, AiMode, ContractModel
+from context.tools import WorkspaceTools
 from settings import Settings
 
-SERVICE_VERSION = "0.0.0"
+SERVICE_VERSION = "0.1.0"
 
 
 class HealthResponse(ContractModel):
@@ -36,15 +36,9 @@ class HealthResponse(ContractModel):
     status: str = "ok"
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, agent: Any = None) -> FastAPI:
     settings = settings or Settings()
-
-    @asynccontextmanager
-    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        # One HTTP pool per process, shared by providers (see A4).
-        async with httpx.AsyncClient() as client:
-            app.state.http_client = client
-            yield
+    agent = agent if agent is not None else StubAgent(AiMode(settings.ai_mode))
 
     app = FastAPI(
         title="ai-buddy-ai",
@@ -53,35 +47,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
-        lifespan=lifespan,
     )
     app.state.settings = settings
+    app.state.agent = agent
 
     @app.get("/health", response_model=HealthResponse)
     async def health() -> HealthResponse:
         return HealthResponse()
 
-    @app.post(
-        "/internal/ai/respond",
-        response_model=AgentResult,
-        response_model_by_alias=True,
-    )
-    async def respond(body: AgentRespondRequest) -> AgentResult:
-        # A0: no orchestration yet (task A3). Return an explicit typed stub
-        # with an error code - never a fake successful answer.
-        return AgentResult(
-            text=(
-                "AI-оркестрация пока не реализована (этап A3). "
-                "Это типизированный ответ-заглушка этапа A0."
-            ),
-            source=SourceType.NONE,
-            next_step=None,
-            action_type=ActionType.NONE,
-            request_status=body.context.request.request_status,
-            effective_access=body.context.access.effective_access,
-            ai_mode=settings.ai_mode,
-            error_code="agent_not_implemented",
-        )
+    @app.post("/internal/ai/respond")
+    async def respond(body: AgentRespondRequest) -> dict[str, Any]:
+        tools = WorkspaceTools(body.workspace)
+        return await run_in_threadpool(agent.respond, body.text, tools)
 
     return app
 

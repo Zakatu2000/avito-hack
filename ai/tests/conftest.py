@@ -1,7 +1,7 @@
 """Shared fixtures for the AI zone tests.
 
-The payload fixtures double as the LOCAL TYPED FIXTURE for the provisional
-contract (contracts/ is owned by team task B1 and does not exist yet).
+The workspace fixture mirrors contracts/examples/initial.json (owner: Web 2).
+The living binding to the authoritative files is test_contract_examples.py.
 """
 
 import pytest
@@ -20,41 +20,32 @@ def demo_settings() -> Settings:
 @pytest.fixture()
 def client(demo_settings: Settings) -> TestClient:
     app = create_app(demo_settings)
-    with TestClient(app) as test_client:  # runs lifespan (pool create/close)
+    with TestClient(app) as test_client:  # runs startup/shutdown
         yield test_client
 
 
 @pytest.fixture()
-def base_context_payload() -> dict:
-    """Intern with an assigned task, allowed instruction, NO effective right."""
+def workspace_initial() -> dict:
+    """Intern: task assigned, allowed instruction, NO effective right, no request."""
     return {
-        "sessionId": "sess-0001",
-        "assignmentId": "assign-0001",
-        "correlationId": "corr-0001",
         "task": {
-            "state": "known",
-            "taskId": "task-0001",
-            "title": "Первый PR (учебная задача)",
-            "resourceId": "repo-learning-101",
+            "taskId": "task-01",
+            "title": "Открыть README учебного репозитория",
+            "resourceId": "repo-intro",
         },
-        "instruction": {
-            "state": "known",
-            "resourceId": "repo-learning-101",
-            "fragment": "Учебный фрагмент инструкции (синтетические данные).",
-            "sourceRef": "docs/sdd/sources.md#provisional",
+        "source": {
+            "sourceId": "demo-guide",
+            "excerpt": "Учебная инструкция. Подтвердите заявку на доступ к назначенному репозиторию.",
         },
-        "access": {
-            "state": "known",
-            "resourceId": "repo-learning-101",
-            "effectiveAccess": "none",
-        },
-        "request": {"state": "unknown"},
+        "effectiveAccess": "missing",
+        "request": None,
+        "nextStep": "Спросите помощника о первом шаге",
     }
 
 
 @pytest.fixture()
-def respond_payload(base_context_payload: dict) -> dict:
+def respond_payload(workspace_initial: dict) -> dict:
     return {
-        "context": base_context_payload,
-        "userMessage": "Не могу открыть учебный репозиторий. Что делать?",
+        "text": "Не могу открыть учебный репозиторий. Что делать?",
+        "workspace": workspace_initial,
     }

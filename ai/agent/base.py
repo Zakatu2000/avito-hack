@@ -1,21 +1,23 @@
-"""Agent port (task A0 stub; orchestration lands in task A3).
+"""Agent port per contracts/agent.md v1.0.0.
 
-Minimal port compatible with the team contract:
+    Agent.respond(text: str, tools: ScopedReadTools) -> dict
 
-    class Agent(Protocol):
-        def respond(self, context: AgentContext, user_message: str) -> AgentResult
-
-The async signature keeps all I/O non-blocking (FastAPI runtime); a sync
-in-process adapter, if the server owner chooses one, wraps it with
-asyncio.run / anyio at the boundary - never inside the service.
+Synchronous by design: the server (Flask) calls the agent inside an
+AgentRunner thread pool with a timeout and a concurrency semaphore
+(server/dialog.py). Implementations must therefore:
+- be fast and honour their own IO timeouts (the runner's timeout is 10 s);
+- never mutate anything (read tools only; all writes belong to the server);
+- return AgentDecision(...).as_wire() - a dict with exactly
+  {kind, text, sourceId, aiMode};
+- echo the configured aiMode, or the server rejects the decision.
 """
 
-from typing import Protocol
+from typing import Any, Protocol
 
-from context.models import AgentContext, AgentResult
+from context.tools import ScopedReadTools
 
 
 class Agent(Protocol):
-    async def respond(self, context: AgentContext, user_message: str) -> AgentResult:
-        """Produce a typed result from trusted facts. Never mutates anything."""
+    def respond(self, text: str, tools: ScopedReadTools) -> dict[str, Any]:
+        """Produce a decision from trusted facts. Never mutates anything."""
         ...
