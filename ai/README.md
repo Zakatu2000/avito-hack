@@ -1,34 +1,110 @@
-# AI-модуль «Первый PR»
+# AI-контур AI-buddy «Первый PR» (Hack&Change 2026)
 
-Agent.respond(text, tools) реализует contracts/agent.md. Поведение и критерии приёмки — docs/sdd/agent.md.
+Пакет агента для backend-сервера команды (Flask + PostgreSQL). Контракт —
+**командный, уже зафиксирован**: `contracts/agent.md` v1.0.0 и
+`contracts/openapi.yaml` v1.3.0 (владелец — Web 2, задача B1). AI-зона
+зеркалит контракт типами и не создаёт параллельных несовместимых схем.
 
-В demo классификация ограничена известными формулировками. В live внешний LLM распознаёт намерение пользователя. Текст с фактическими статусами строится из разрешённых серверных данных. По этой причине модель не может придумать номер заявки или вызвать произвольную операцию. Ошибка классификации всё ещё может дать неуместный ответ; для её оценки предусмотрен набор диалогов.
+## Граница ответственности
 
-## Настройка
+AI **не делает** и не может: выдавать/отзывать права; создавать/подтверждать
+заявки; генерировать `proposalId`/`requestId`/статусы; менять
+`requestStatus`/`effectiveAccess`; подключаться к PostgreSQL; принимать
+browser cookies; читать произвольные ресурсы; считать ответ LLM
+доказательством фактического действия. AI читает факты через разрешённые
+read-only инструменты и возвращает типизированное решение; запись и проверка
+подтверждения принадлежат серверу.
 
-По умолчанию AI_MODE=demo. Для live задайте:
+## Интеграция (in-process, основной путь)
 
-    AI_MODE=live
-    AI_BASE_URL=https://api.z.ai/api/paas/v4
-    AI_MODEL=glm-5.3
-    AI_API_KEY=<ключ API провайдера>
-    AI_TIMEOUT_SECONDS=8
-    BUDDY_AGENT_TIMEOUT=12
+Сервер вызывает агента синхронно в пуле потоков `AgentRunner` (семафор 4,
+валидация решения), см. `server/dialog.py`:
 
-Ключ храните в локальном окружении или .env. Для Docker переменные перечислены в compose.yaml. Нужен API-доступ, подходящий для выбранного endpoint и модели. AI-модуль не читает конфигурацию OpenCode, Codex или иных приложений.
+```python
+# contracts/agent.md v1.0.0
+Agent.respond(text: str, tools: ScopedReadTools) -> {"kind", "text", "sourceId", "aiMode"}
+```
 
-Запрос — POST /chat/completions с messages и response_format=json_object, max_tokens, reasoning_effort=low. Выбранный провайдер должен поддерживать эти параметры. На несовместимости или отказе API возвращает 503. Для локального тестового сервера разрешён HTTP на loopback; внешние endpoints требуют HTTPS. Перенаправления отклоняются, чтобы ключ не ушёл на другой адрес.
+Подключение (Web 2, B4): сервер подхватывает фабрику из переменной
+`BUDDY_AGENT_FACTORY` (import string, вызывается без аргументов):
 
-Провайдеру отправляются вопрос стажёра, текущее назначение, разрешённая инструкция, признаки доступа и заявки. Используются синтетические данные. Номер заявки и сессия остаются на сервере. Полные тексты вопросов и ключи не записываются в журналы.
+```text
+BUDDY_AGENT_FACTORY=agent.factory:create_agent
+```
 
-AI_MAX_TOKENS ограничивает ответ, по умолчанию 1024. Допустимо 64–4096. Если ответ обрезан, валидатор его отклоняет. Тайм-аут провайдера больше 0 и до 60 с включительно, строго меньше BUDDY_AGENT_TIMEOUT. Один HTTP вызов на вопрос, без автоматических повторов.
+**Правило согласованности режима:** сервер считает режим `live`, если фабрика
+задана, иначе `demo`, и отклоняет решение с несовпадающим `aiMode`. Поэтому
+`BUDDY_AGENT_FACTORY` задаём только вместе с `AI_MODE=live`; демо —
+это отсутствие фабрики (server-side `DemoAgent`), либо локальный запуск этого
+пакета. Скрытая подмена режима исключена валидацией на стороне сервера.
 
-## Проверки
+Инструменты чтения (строит сервер, без userId, скоуп — текущее назначение):
+`current_task()`, `instruction()`, `effective_access()` → `missing|granted|unknown`,
+`current_request()`. Скрытый и отсутствующий объект читаются одинаково пусто;
+ошибка чтения права — `unknown`, а не «права нет».
 
-Из корня:
+## Структура
 
-    python -m pytest ai/tests
-    python -m ai.evals.run
-    python scripts/check.py --release
+| Путь | Назначение | Задача |
+|---|---|---|
+| `ai/context/models.py` | Типы контракта: `Workspace`, `Task`, `Source`, `Ticket`, `AgentDecision` | A0.1 |
+| `ai/context/tools.py` | `ScopedReadTools`, `WorkspaceTools`, адаптер `wrap_tools` | A0.1 → A2 |
+| `ai/agent/base.py` | Порт `Agent.respond` (sync) | A0.1 → A3 |
+| `ai/agent/policy.py` | Детерминированная policy S01–S12 + `BuddyAgent` (LLM-перефразирование) | A3 |
+| `ai/agent/factory.py` | Фабрика `create_agent` для `BUDDY_AGENT_FACTORY` | A4 |
+| `ai/providers/` | `LLMProvider` (sync), `DemoProvider`, `DeepSeekProvider` | A0 → A4 |
+| `ai/server.py` | Опциональный HTTP-адаптер (`/health`, `/internal/ai/respond`) | A0.1 |
+| `ai/tests/` | unit/контрактные тесты; `test_contract_examples.py` валидирует `contracts/examples/*.json` | A0.1+ |
+| `ai/evals/` | офлайн-диалоги (29) и runner | A5 |
+| `docs/sdd/` | SDD: `sources.md`, `cases.md`, `agent.md` | A1 |
 
-Отчёт детерминированной оценки выводится в reports/ai-eval.json. Для настоящей модели явно выполните AI_MODE=live python -m ai.evals.run: это делает платные вызовы к настроенному провайдеру. Результат зависит от модели и фиксируется отдельно с режимом, моделью, временем и результатом каждого случая. Не выдавайте тесты имитации HTTP за проверку живой модели.
+## Быстрый старт (Windows, из корня репозитория)
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python -m pip install -e "ai[dev]"
+cd ai
+..\.venv\Scripts\python -m pytest --cov --cov-report=term-missing   # тесты + покрытие (цель >= 90%)
+..\.venv\Scripts\python -m uvicorn server:app --reload --port 8100  # опциональный HTTP-адаптер
+```
+
+Проверка: `curl http://127.0.0.1:8100/health` → `{"status":"ok"}`.
+`/health` ничего не раскрывает о конфигурации; публичные `/docs` отключены.
+
+## Режимы и переменные окружения
+
+Шаблон — `ai/.env.example` (копировать в `ai/.env`, в git не коммитить).
+Для Docker-сборки переменные перечислены в `compose.yaml`.
+
+| Переменная | Значение |
+|---|---|
+| `AI_MODE` | `demo` (по умолчанию; без ключа; воспроизводимо) / `live` |
+| `AI_PROVIDER` | `deepseek` / `demo` |
+| `DEEPSEEK_BASE_URL`, `DEEPSEEK_MODEL`, `DEEPSEEK_API_KEY`, `DEEPSEEK_TIMEOUT_SECONDS` | обязательны только для `live` |
+| `BUDDY_AGENT_FACTORY` | import string фабрики агента; задавать только вместе с `AI_MODE=live` |
+| `BUDDY_AGENT_TIMEOUT` | бюджет `AgentRunner` в секундах; должен превышать `DEEPSEEK_TIMEOUT_SECONDS` |
+
+Инварианты: `live` без полного конфига — ошибка при старте, не скрытый
+fallback; сбой провайдера — исключение, которое сервер превращает в 503
+(`unavailable`), без ложного успеха. Ключи не коммитим и не логируем.
+Тайм-аут провайдера строго меньше бюджета раннера — иначе сервер отклонит
+конфигурацию при старте.
+
+## Текущий статус
+
+A0–A6 выполнены: типы контракта, read-only инструменты, детерминированная
+policy S01–S12 (`BuddyAgent`), `DeepSeekProvider` (json_object, один retry на
+пустой ответ, fail-fast по 429/5xx/timeout; по документации api-docs.deepseek.com),
+`DemoProvider` без ключа, фабрика `create_agent` для `BUDDY_AGENT_FACTORY`,
+опциональный HTTP-адаптер, 29 офлайн-диалогов (включая prompt-injection).
+Живой вызов DeepSeek не проверялся — ключа нет (помечено явно, не выдаём за
+проверенное). Реальные smoke-запросы live-классификатора предыдущей сборки
+(10 ноября, 3 синтетические ситуации) зафиксированы в `docs/sdd/cases.md`.
+
+## Handoff
+
+- **B4**: фабрика агента и примечания по режимам — выше; контрактные примеры
+  валидируются тестом `ai/tests/test_contract_examples.py`.
+- **F3**: тексты и виды решений (`kind`) — после A3.
+- **B6**: команды запуска/тестов/покрытия выше; покрытие ai/ считается
+  отдельно от server/ и суммируется без двойного учёта.
