@@ -8,8 +8,9 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def run(*args):
-    subprocess.run(args, cwd=ROOT, check=True, env={**os.environ, "AI_MODE": "demo"})
+def run(*args, env_extra=None):
+    subprocess.run(args, cwd=ROOT, check=True,
+                   env={**os.environ, "AI_MODE": "demo", **(env_extra or {})})
 
 
 def main():
@@ -21,18 +22,25 @@ def main():
     (ROOT / "reports/summary.json").unlink(missing_ok=True)
     run(sys.executable, "contracts/tests/check_examples.py")
     sources = "server,ai" if (ROOT / "ai").is_dir() else "server"
-    suites = ["server/tests", "scripts/tests"]
-    if (ROOT / "ai").is_dir():
-        suites.append("ai/tests")
-    run(sys.executable, "-m", "coverage", "run", "--source=" + sources, "-m", "pytest", "-q", *suites)
+    # The AI zone roots its imports at ai/ (its pyproject.toml adds that
+    # directory to sys.path via pythonpath), which conflicts with the
+    # top-level server package. Run it as separate invocations.
+    ai_pythonpath = str(ROOT / "ai") + os.pathsep + os.environ.get("PYTHONPATH", "")
+    run(sys.executable, "-m", "coverage", "run", "--source=" + sources,
+        "-m", "pytest", "-q", "server/tests", "scripts/tests",
+        env_extra={"PYTHONPATH": ai_pythonpath})
     if (ROOT / "ai").is_dir():
         run(sys.executable, "-m", "coverage", "run", "--append", "--source=" + sources,
-            "-m", "ai.evals.run")
+            "-m", "pytest", "-q", "ai/tests")
+        ai_pythonpath = str(ROOT / "ai") + os.pathsep + os.environ.get("PYTHONPATH", "")
+        run(sys.executable, "-m", "coverage", "run", "--append", "--source=" + sources,
+            "-m", "evals.runner", env_extra={"PYTHONPATH": ai_pythonpath})
     run(sys.executable, "-m", "coverage", "json")
     run(sys.executable, "-m", "coverage", "report")
     if (ROOT / "web").is_dir():
         (ROOT / "web/coverage/lcov.info").unlink(missing_ok=True)
-        run("npm", "--prefix", "web", "run", "test:coverage")
+        npm = "npm.cmd" if os.name == "nt" else "npm"
+        run(npm, "--prefix", "web", "run", "test:coverage")
     run(sys.executable, "scripts/coverage_summary.py", *(["--release"] if args.release else []))
 
 

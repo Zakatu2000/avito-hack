@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def collect():
-    report = json.loads((ROOT / "reports/python-coverage.json").read_text())
+    report = json.loads((ROOT / "reports/python-coverage.json").read_text(encoding="utf-8"))
     measured = {}
     for filename, detail in report["files"].items():
         path = Path(filename)
@@ -40,7 +40,7 @@ def collect():
         lcov = web / "coverage/lcov.info"
         lines = {}
         current = None
-        for entry in lcov.read_text().splitlines():
+        for entry in lcov.read_text(encoding="utf-8").splitlines():
             if entry.startswith("SF:"):
                 source = Path(entry[3:])
                 source = source if source.is_absolute() else web / source

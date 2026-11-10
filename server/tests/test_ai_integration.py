@@ -1,13 +1,12 @@
-from ai.agent import Agent
+from agent.policy import BuddyAgent
+from context.models import AiMode
 from server.app import create_app
 
 
 def test_live_agent_proposes_only_current_resource_and_persists_on_confirmation(db,database_url):
-    class Intent:
-        def classify(self,text,context):
-            assert context.task["taskId"] == "task-01"
-            return "access_help"
-    app = create_app({"DATABASE_URL":database_url,"AGENT":Agent(Intent(),"live")})
+    # Deterministic contract agent in live mode (no provider): the decision
+    # comes from trusted facts only, the server owns proposal/request writes.
+    app = create_app({"DATABASE_URL":database_url,"AGENT":BuddyAgent(AiMode.LIVE)})
     client = app.test_client()
     client.post("/api/session",json={"username":"intern-demo","password":"training-only"})
     reply = client.post("/api/messages",json={"text":"Не могу начать"}).get_json()

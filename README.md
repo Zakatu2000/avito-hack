@@ -92,9 +92,9 @@
 
 Возьмите proposal.proposalId из ответа, подтвердите через маршрут B3 и задайте тот же вопрос ещё раз. Ответ покажет сохранённый requestId. Клиент отображает aiMode, состояние ожидания, при 409 обновляет workspace и предлагает повторить вопрос; при 503 показывает ошибку интеграции.
 
-По умолчанию AI_MODE=demo. Модуль ai/ уже подключён к стандартному маршруту сообщений. Для настоящей классификации задайте AI_MODE=live, AI_BASE_URL, AI_MODEL и AI_API_KEY по ai/README.md. Настройки Docker перечислены в compose.yaml. Ключи из других приложений продукт не читает.
+По умолчанию AI_MODE=demo (серверный DemoAgent, без ключа). Для живого режима задайте BUDDY_AGENT_FACTORY=agent.factory:create_agent вместе с AI_MODE=live и ключами DEEPSEEK_* по ai/README.md. Настройки Docker перечислены в compose.yaml. Ключи из других приложений продукт не читает.
 
-API ждёт по умолчанию до 12 секунд, тайм-аут провайдера — 8 секунд. При ошибке модель не подменяется демоответом. Для альтернативного адаптера сохраняется BUDDY_AGENT_FACTORY с фабрикой Python, которая возвращает объект respond(text, tools). Его mode равен demo или live; без атрибута mode адаптер считается live.
+API ждёт по умолчанию до 12 секунд, тайм-аут провайдера — 8 секунд. При ошибке модель не подменяется демоответом. Для альтернативного адаптера сохраняется BUDDY_AGENT_FACTORY с фабрикой Python, которая возвращает объект respond(text, tools); режим определяется наличием фабрики (live) либо её отсутствием (demo), решение с чужим aiMode отклоняется.
 
 ## B5 · согласование в отдельной сессии
 
@@ -172,9 +172,9 @@ Compose собирает React-интерфейс и раздаёт его вм�
 
 ## AI A1–A6
 
-Поведение и источники — [docs/sdd/agent.md](docs/sdd/agent.md) и [docs/sdd/sources.md](docs/sdd/sources.md). Приёмочные случаи — ai/evals/cases.json. Провайдер и переменные — [ai/README.md](ai/README.md).
+Поведение и источники — [docs/sdd/agent.md](docs/sdd/agent.md) и [docs/sdd/sources.md](docs/sdd/sources.md). Приёмочные случаи — ai/evals/dataset.json (29 офлайн-диалогов). Провайдер и переменные — [ai/README.md](ai/README.md).
 
-    AI_MODE=demo python -m ai.evals.run
+    cd ai && python -m evals.runner
     python scripts/check.py --release
 
 Общая команда проверки использует demo для воспроизводимости и не отправляет вопросы внешней модели. Live-оценка запускается отдельно по явной команде с настроенным ключом и делает платные вызовы.

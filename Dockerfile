@@ -6,7 +6,7 @@ COPY web ./
 RUN npm run build
 
 FROM python:3.12-slim-bookworm AS runtime
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app/ai
 WORKDIR /app
 COPY server/requirements.txt server/requirements.txt
 RUN pip install --no-cache-dir -r server/requirements.txt
@@ -29,7 +29,7 @@ RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
 COPY --from=webbuild /app/web web
 COPY server/requirements-test.txt server/requirements-test.txt
 COPY contracts/requirements.txt contracts/requirements.txt
-RUN pip install --no-cache-dir -r server/requirements-test.txt -r contracts/requirements.txt
+RUN pip install --no-cache-dir -r server/requirements-test.txt -r contracts/requirements.txt -e ai
 COPY contracts contracts
 COPY scripts scripts
 COPY .coveragerc .coveragerc

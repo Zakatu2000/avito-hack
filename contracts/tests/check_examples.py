@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main():
-    spec = yaml.safe_load((ROOT / "openapi.yaml").read_text())
+    spec = yaml.safe_load((ROOT / "openapi.yaml").read_text(encoding="utf-8"))
     validate(spec)
     checked = set()
     for operations in spec["paths"].values():
@@ -27,7 +27,7 @@ def main():
                 })
                 for example in media.get("examples", {}).values():
                     path = (ROOT / example["externalValue"]).resolve()
-                    validator.validate(json.loads(path.read_text()))
+                    validator.validate(json.loads(path.read_text(encoding="utf-8")))
                     checked.add(path)
     if checked != set((ROOT / "examples").glob("*.json")):
         raise ValueError("Есть примеры без привязки к операции")

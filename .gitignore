@@ -19,3 +19,4 @@ reports/
 # Local env — secrets must never be committed
 .env
 ai/.env
+.venv2/

@@ -21,7 +21,7 @@ def test_login_matches_b1_and_uses_opaque_session(app, db):
     client = app.test_client()
     reply = login(client)
     assert reply.status_code == 200
-    initial = json.loads((EXAMPLES / "initial.json").read_text())
+    initial = json.loads((EXAMPLES / "initial.json").read_text(encoding="utf-8"))
     assert reply.get_json() == initial
     assert client.get("/api/workspace").get_json() == initial
     cookie = client.get_cookie(COOKIE)
