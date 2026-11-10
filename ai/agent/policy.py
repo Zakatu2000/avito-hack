@@ -61,6 +61,9 @@ SYSTEM_POLICY = (
     "ask_next_step (как двигаться дальше), ask_request_status (что с моей "
     "заявкой), ask_mentor (позвать человека/наставника), off_topic (вне "
     "учебной задачи), unclear (непонятно).\n"
+    "Если стажёр пишет, что застрял, не продвигается или не понимает, с чего "
+    "начать первую задачу, а доступа в фактах нет - это blocker_access, а не "
+    "unclear.\n"
     "text - короткий ответ стажёру ТОЛЬКО по переданным фактам. Не выдумывай "
     "номера заявок, статусы, права и источники; не обещай действий (заявку "
     "создаёт и подтверждает сервер, права выдаёт отдельный сервис). "
@@ -79,6 +82,9 @@ _ID_TOKEN = re.compile(r"\b((?:req|prop|repo|task)-[0-9a-z][0-9a-z_-]*)\b", re.I
 # Status/right claims LLM text may only make when the facts confirm them.
 _NO_TICKET_FORBIDDEN = ("одобрен", "отклонён", "отклонен", "ожидает согласования")
 _NOT_GRANTED_FORBIDDEN = ("доступ выдан", "доступ подтверждён", "право выдано")
+# With a granted right and NO request in facts, pointing the trainee at a
+# (nonexistent) request is misleading (found by EVAL-LIVE-09, 2026-11-11).
+_GRANTED_NO_TICKET_FORBIDDEN = ("заявк",)
 
 
 def _known_ids(tools: ScopedReadTools) -> set[str]:
@@ -108,6 +114,13 @@ def _text_consistent_with_facts(text: str, tools: ScopedReadTools) -> bool:
                 return False
     if tools.effective_access() is not EffectiveAccess.GRANTED:
         for stem in _NOT_GRANTED_FORBIDDEN:
+            if stem in lowered:
+                return False
+    if (
+        tools.effective_access() is EffectiveAccess.GRANTED
+        and tools.current_request() is None
+    ):
+        for stem in _GRANTED_NO_TICKET_FORBIDDEN:
             if stem in lowered:
                 return False
     return True

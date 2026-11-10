@@ -312,3 +312,25 @@ def test_granted_claim_without_right_falls_back(workspace_initial: dict) -> None
     assert decision["kind"] == "propose_access"  # facts: missing -> propose
     assert "подтверждён" not in decision["text"] or "нет доступа" in decision["text"]
     assert decision["text"] != "Всё готово: доступ подтверждён."
+
+
+def test_request_mention_when_granted_without_ticket_falls_back(
+    workspaces: dict,
+) -> None:
+    # EVAL-LIVE-09 (2026-11-11 live run): with a granted right and NO request
+    # in facts, LLM text pointing the trainee at a request is misleading -
+    # the fact guard must fall back to the deterministic clarify text.
+    provider = _JsonProvider(
+        {
+            "intent": "blocker_access",
+            "text": "Доступ уже есть. Если не открывается, проверьте заявку.",
+        }
+    )
+    decision = _live_agent(provider).respond(
+        "Не могу открыть репозиторий", _tools(workspaces["granted_no_request"])
+    )
+    assert decision["kind"] == "clarify"
+    assert "заявк" not in decision["text"].casefold()
+    assert_decision_passes_runner_validation(
+        decision, mode="live", source_id="demo-guide"
+    )

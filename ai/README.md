@@ -55,7 +55,7 @@ BUDDY_AGENT_FACTORY=agent.factory:create_agent
 | `ai/providers/` | `LLMProvider` (sync), `DeepSeekProvider` — OpenAI-совместимый адаптер | A0 → A4 |
 | `ai/server.py` | Опциональный HTTP-адаптер (`/health`, `/internal/ai/respond`) | A0.1 |
 | `ai/tests/` | unit/контрактные тесты; `test_contract_examples.py` валидирует `contracts/examples/*.json` | A0.1+ |
-| `ai/evals/` | офлайн-диалоги (29) и runner | A5 |
+| `ai/evals/` | офлайн- и live-диалоги (40 + 18) и runner | A5 |
 | `docs/sdd/` | SDD: `sources.md`, `cases.md`, `agent.md` | A1 |
 
 ## Быстрый старт (Windows, из корня репозитория)
@@ -96,7 +96,9 @@ A0–A6 выполнены: типы контракта, read-only инстру�
 policy S01–S12 (`BuddyAgent`), OpenAI-совместимый провайдер (`DeepSeekProvider`:
 json_object, один retry на пустой ответ, fail-fast по 429/5xx/timeout),
 фабрика `create_agent` для `BUDDY_AGENT_FACTORY`, опциональный HTTP-адаптер,
-40 офлайн-диалогов (включая prompt-injection и live-моки намерений).
+40 офлайн-диалогов (включая prompt-injection и live-моки намерений) и 18
+live-диалогов против реального провайдера (`python -m evals.runner --live`,
+нужен ключ; последний прогон 58/58 — 2026-11-11).
 **Живой вызов проверен 2026-11-10**: ровно 3 синтетических smoke-запроса к
 DeepSeek (`deepseek-chat`, api.deepseek.com) через `create_agent` — 3/3
 решения корректны и выведены из фактов сервера; формулировка без ключевых

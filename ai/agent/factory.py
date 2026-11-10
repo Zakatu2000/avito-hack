@@ -20,8 +20,10 @@ from providers.deepseek import DeepSeekProvider
 from settings import Settings
 
 
-def create_agent() -> BuddyAgent:
-    settings = Settings()
+def create_agent(settings: Settings | None = None) -> BuddyAgent:
+    # The server import-string contract calls this with no arguments; tests
+    # inject Settings(_env_file=None) to stay independent of a local ai/.env.
+    settings = settings or Settings()
     if settings.ai_mode == "live":
         # One process-wide client; timeout stays below the AgentRunner budget.
         client = httpx.Client(timeout=settings.deepseek_timeout_seconds)
