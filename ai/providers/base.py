@@ -4,8 +4,8 @@ Synchronous: the agent runs inside the server's AgentRunner thread pool
 (contracts/agent.md, server/dialog.py). Providers never create per-call
 clients - a process-wide httpx.Client is injected by the factory (A4).
 
-DemoProvider and DeepSeekProvider must pass the SAME contract tests, so the
-demo mode stays a faithful rehearsal of the live path.
+Every provider implementation must pass the SAME contract tests, so live
+behaviour stays a faithful rehearsal of the demo path.
 """
 
 from typing import Protocol

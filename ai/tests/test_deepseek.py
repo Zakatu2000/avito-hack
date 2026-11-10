@@ -58,14 +58,14 @@ def completion(content: str | None, finish_reason: str = "stop") -> httpx.Respon
 
 def test_success_sends_contract_shaped_request() -> None:
     provider, calls = make_provider(
-        lambda _request: completion('{"kind": "answer", "text": "ок"}')
+        lambda _request: completion('{"intent": "unclear", "text": "ок"}')
     )
 
     response = provider.complete(make_request())
 
     assert response.ai_mode is AiMode.LIVE
     assert response.finish_reason == "stop"
-    assert json.loads(response.content) == {"kind": "answer", "text": "ок"}
+    assert json.loads(response.content) == {"intent": "unclear", "text": "ок"}
     (request,) = calls
     assert request.url.path == "/chat/completions"
     assert request.headers["Authorization"] == "Bearer test-key"
@@ -74,14 +74,16 @@ def test_success_sends_contract_shaped_request() -> None:
     assert body["response_format"] == {"type": "json_object"}
     assert body["stream"] is False
     # json-mode prompt requirements: the word "json" and a JSON example.
-    assert '"kind"' in body["messages"][1]["content"]
+    assert '"intent"' in body["messages"][1]["content"]
 
 
 def test_blank_content_is_retried_once_then_succeeds() -> None:
-    answers = iter([completion("   "), completion('{"kind": "answer", "text": "ок"}')])
+    answers = iter(
+        [completion("   "), completion('{"intent": "unclear", "text": "ок"}')]
+    )
     provider, calls = make_provider(lambda _request: next(answers))
     response = provider.complete(make_request())
-    assert json.loads(response.content)["kind"] == "answer"
+    assert json.loads(response.content)["intent"] == "unclear"
     assert len(calls) == 2
 
 

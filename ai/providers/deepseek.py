@@ -1,4 +1,4 @@
-"""DeepSeek provider over the OpenAI-compatible HTTP API (task A4).
+"""OpenAI-compatible chat-completions provider (task A4).
 
 Confirmed against https://api-docs.deepseek.com (guides/json_mode,
 api/create-chat-completion):
@@ -9,7 +9,10 @@ api/create-chat-completion):
   then fail as provider_unavailable;
 - finish_reason is passed through; the caller (policy, A3) accepts only
   "stop" and falls back deterministically otherwise;
-- model name comes ONLY from DEEPSEEK_MODEL - never hard-coded.
+- model name comes ONLY from settings (env) - never hard-coded.
+
+The LLM returns a closed-set interpretation intent plus the formulated text
+(LLMOutputSchema); the policy derives the decision from facts.
 
 Failure policy: timeout / transport / HTTP error -> ProviderUnavailableError
 immediately (the server turns it into 503 `unavailable`, S12); blank content
@@ -29,7 +32,10 @@ from providers.base import (
 )
 from settings import Settings
 
-_JSON_EXAMPLE = '{"kind": "<answer|clarify|propose_access|handoff>", "text": "..."}'
+_JSON_EXAMPLE = (
+    '{"intent": "<blocker_access|ask_next_step|ask_request_status|ask_mentor'
+    '|off_topic|unclear>", "text": "..."}'
+)
 
 
 class DeepSeekProvider:

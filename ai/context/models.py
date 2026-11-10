@@ -86,6 +86,24 @@ class DecisionKind(StrEnum):
     HANDOFF = "handoff"
 
 
+class InterpretationIntent(StrEnum):
+    """Closed set of interpretation intents the LLM may report.
+
+    An intent is an INPUT to the deterministic policy - never a decision.
+    The policy still picks kind/sourceId from trusted facts only; the intent
+    may solely steer clarify vs propose_access where facts allow it
+    (effective access missing AND no active request). It can never create a
+    proposal at granted/pending/approved, never change statuses or source.
+    """
+
+    BLOCKER_ACCESS = "blocker_access"
+    ASK_NEXT_STEP = "ask_next_step"
+    ASK_REQUEST_STATUS = "ask_request_status"
+    ASK_MENTOR = "ask_mentor"
+    OFF_TOPIC = "off_topic"
+    UNCLEAR = "unclear"
+
+
 class AgentDecision(ContractModel):
     """Decision of Agent.respond (contracts/agent.md).
 
@@ -128,7 +146,12 @@ class AgentRespondRequest(ContractModel):
 
 
 class LLMOutputSchema(ContractModel):
-    """JSON object the LLM must return (A4); post-validated by policy (A3)."""
+    """JSON object the LLM must return; post-validated by policy (A3).
 
-    kind: DecisionKind
+    `intent` belongs to the closed InterpretationIntent set; `text` is the
+    formulated answer. The policy ignores any kind-like field the model may
+    invent and derives the decision from facts (+ intent steering).
+    """
+
+    intent: InterpretationIntent
     text: str = Field(min_length=1)

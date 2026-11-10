@@ -64,10 +64,44 @@ class _InvalidProvider:
         )
 
 
-def build_agent(provider_mode: str, live_agent: BuddyAgent | None) -> BuddyAgent:
+# Live-contract mock: the provider half is stubbed with a fixed closed-set
+# intent (entry "providerIntent", optional "providerText"); the policy half
+# still runs for real, so mock entries exercise the full live seam offline.
+MOCK_FALLBACK_TEXT = (
+    "Похоже, не хватает права на репозиторий задачи - могу подготовить "
+    "заявку на чтение."
+)
+
+
+class _IntentMockProvider:
+    def __init__(self, intent: str, text: str) -> None:
+        self._payload = json.dumps(
+            {"intent": intent, "text": text}, ensure_ascii=False
+        )
+
+    def complete(self, request):  # noqa: ANN001 - test double
+        return LLMResponse(
+            content=self._payload, finish_reason="stop", ai_mode=AiMode.LIVE
+        )
+
+
+def build_agent(
+    provider_mode: str,
+    live_agent: BuddyAgent | None,
+    entry: dict | None = None,
+) -> BuddyAgent:
     if provider_mode == "live":
         assert live_agent is not None
         return live_agent
+    if provider_mode == "mock":
+        entry = entry or {}
+        return BuddyAgent(
+            AiMode.LIVE,
+            _IntentMockProvider(
+                entry.get("providerIntent", "unclear"),
+                entry.get("providerText", MOCK_FALLBACK_TEXT),
+            ),
+        )
     if provider_mode == "failing":
         return BuddyAgent(AiMode.LIVE, _FailingProvider())
     if provider_mode == "invalid":
@@ -79,7 +113,7 @@ def evaluate(entry: dict, live_agent: BuddyAgent | None) -> list[str]:
     """Run one dialog; return violations (empty list = pass)."""
     violations: list[str] = []
     expect = entry["expect"]
-    agent = build_agent(entry.get("providerMode", "demo"), live_agent)
+    agent = build_agent(entry.get("providerMode", "demo"), live_agent, entry)
 
     try:
         decision = agent.respond(entry["message"], entry["_spy"])

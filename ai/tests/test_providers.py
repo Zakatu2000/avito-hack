@@ -1,6 +1,7 @@
-"""Provider contract: Demo and DeepSeek pass the SAME checks (plan A4).
+"""Provider contract: every implementation passes the SAME checks (plan A4).
 
-DeepSeek is exercised through httpx.MockTransport - no real calls, no key.
+The real provider is exercised through httpx.MockTransport - no real calls,
+no key. A minimal in-process stub stands in for any other implementation.
 """
 
 import json
@@ -11,7 +12,6 @@ from pydantic import SecretStr
 
 from context.models import AiMode, LLMOutputSchema
 from providers.base import LLMProvider, LLMRequest, LLMResponse
-from providers.demo import DemoProvider
 from providers.deepseek import DeepSeekProvider
 from settings import Settings
 
@@ -24,8 +24,22 @@ def make_request() -> LLMRequest:
     )
 
 
-def demo_provider() -> LLMProvider:
-    return DemoProvider()
+class StubIntentProvider:
+    """Smallest possible implementation of the provider port."""
+
+    def complete(self, request: LLMRequest) -> LLMResponse:
+        return LLMResponse(
+            content=json.dumps(
+                {"intent": "unclear", "text": "уточните, что не получается"},
+                ensure_ascii=False,
+            ),
+            finish_reason="stop",
+            ai_mode=AiMode.LIVE,
+        )
+
+
+def stub_provider() -> LLMProvider:
+    return StubIntentProvider()
 
 
 def live_provider() -> LLMProvider:
@@ -43,7 +57,9 @@ def live_provider() -> LLMProvider:
             json={
                 "choices": [
                     {
-                        "message": {"content": '{"kind": "answer", "text": "ок"}'},
+                        "message": {
+                            "content": '{"intent": "unclear", "text": "ок"}'
+                        },
                         "finish_reason": "stop",
                     }
                 ]
@@ -55,19 +71,19 @@ def live_provider() -> LLMProvider:
 
 @pytest.mark.parametrize(
     ("factory", "expected_mode"),
-    [(demo_provider, AiMode.DEMO), (live_provider, AiMode.LIVE)],
+    [(stub_provider, AiMode.LIVE), (live_provider, AiMode.LIVE)],
 )
 def test_providers_share_one_contract(factory, expected_mode: AiMode) -> None:
     response = factory().complete(make_request())
     assert isinstance(response, LLMResponse)
     assert response.ai_mode is expected_mode
     assert response.finish_reason == "stop"
-    # Content always parses into the LLM output schema (validated again in A3).
+    # Content always parses into the LLM output schema (validated again by policy).
     LLMOutputSchema.model_validate_json(response.content)
 
 
-def test_demo_provider_is_deterministic_and_keyless() -> None:
-    provider = DemoProvider()
+def test_stub_provider_is_deterministic_and_keyless() -> None:
+    provider = StubIntentProvider()
     assert provider.complete(make_request()) == provider.complete(make_request())
 
 

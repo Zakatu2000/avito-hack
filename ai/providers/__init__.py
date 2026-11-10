@@ -1,1 +1,1 @@
-"""LLM providers (task A4): shared interface, demo and DeepSeek adapters."""
+"""LLM providers (task A4): shared interface and the OpenAI-compatible adapter."""
