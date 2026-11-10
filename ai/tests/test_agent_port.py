@@ -1,9 +1,9 @@
-"""Agent port and the A0/A0.1 stub against the server's validation rules."""
+"""Agent port: structural contract and server-side validation compatibility."""
 
 from typing import Any
 
 from agent.base import Agent
-from agent.stub import StubAgent
+from agent.policy import BuddyAgent
 from context.models import AiMode, Workspace
 from context.tools import WorkspaceTools
 
@@ -25,14 +25,14 @@ def assert_decision_passes_runner_validation(
     assert decision["sourceId"] in (None, source_id)
 
 
-def test_stub_agent_returns_a_valid_contract_decision(
+def test_buddy_agent_demo_returns_valid_contract_decision(
     workspace_initial: dict,
 ) -> None:
-    agent = StubAgent(AiMode.DEMO)
-    decision = agent.respond("что делать?", WorkspaceTools(Workspace.model_validate(workspace_initial)))
+    agent = BuddyAgent(AiMode.DEMO)
+    decision = agent.respond(
+        "что делать?", WorkspaceTools(Workspace.model_validate(workspace_initial))
+    )
     assert_decision_passes_runner_validation(decision, mode="demo", source_id="demo-guide")
-    assert decision["kind"] == "clarify"
-    assert decision["sourceId"] is None
 
 
 def test_agent_port_accepts_structural_implementation() -> None:

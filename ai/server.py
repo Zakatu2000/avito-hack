@@ -22,7 +22,7 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi.concurrency import run_in_threadpool
 
-from agent.stub import StubAgent
+from agent.policy import BuddyAgent
 from context.models import AgentRespondRequest, AiMode, ContractModel
 from context.tools import WorkspaceTools
 from settings import Settings
@@ -38,7 +38,7 @@ class HealthResponse(ContractModel):
 
 def create_app(settings: Settings | None = None, agent: Any = None) -> FastAPI:
     settings = settings or Settings()
-    agent = agent if agent is not None else StubAgent(AiMode(settings.ai_mode))
+    agent = agent if agent is not None else BuddyAgent(AiMode(settings.ai_mode))
 
     app = FastAPI(
         title="ai-buddy-ai",

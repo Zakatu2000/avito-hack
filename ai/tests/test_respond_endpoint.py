@@ -10,9 +10,9 @@ def test_respond_returns_valid_decision(client: TestClient, respond_payload: dic
     assert response.status_code == 200
     body = response.json()
     assert set(body) == DECISION_KEYS
-    assert body["kind"] == "clarify"  # A0/A0.1 stub; orchestration lands in A3
+    assert body["kind"] == "propose_access"  # policy over the "initial" fixture
     assert body["aiMode"] == "demo"
-    assert body["sourceId"] is None
+    assert body["sourceId"] == "demo-guide"
 
 
 def test_respond_rejects_missing_workspace(client: TestClient) -> None:

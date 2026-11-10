@@ -44,6 +44,38 @@ def workspace_initial() -> dict:
 
 
 @pytest.fixture()
+def workspaces(workspace_initial: dict) -> dict[str, dict]:
+    """Contract-shaped workspace variants (mirror contracts/examples/*)."""
+
+    def with_overrides(**changes: object) -> dict:
+        return workspace_initial | changes
+
+    ticket = lambda status: {"requestId": "req-01", "requestStatus": status}  # noqa: E731
+    return {
+        "initial": workspace_initial,
+        "no_task": {
+            "task": None,
+            "source": None,
+            "effectiveAccess": "unknown",
+            "request": None,
+            "nextStep": "Дождитесь назначения первой задачи",
+        },
+        "pending": with_overrides(request=ticket("pending")),
+        "approved": with_overrides(request=ticket("approved")),
+        "granted": with_overrides(
+            effectiveAccess="granted",
+            request=ticket("approved"),
+            nextStep="Откройте README учебного репозитория",
+        ),
+        "rejected": with_overrides(request=ticket("rejected")),
+        "granted_no_request": with_overrides(
+            effectiveAccess="granted", nextStep="Откройте README учебного репозитория"
+        ),
+        "unknown_access": with_overrides(effectiveAccess="unknown"),
+    }
+
+
+@pytest.fixture()
 def respond_payload(workspace_initial: dict) -> dict:
     return {
         "text": "Не могу открыть учебный репозиторий. Что делать?",
