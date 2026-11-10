@@ -1,6 +1,10 @@
 [run]
-source = server
-omit = server/tests/*
+source =
+    server
+    ai
+omit =
+    server/tests/*
+    ai/tests/*
 data_file = reports/.coverage
 
 [report]

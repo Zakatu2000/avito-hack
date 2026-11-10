@@ -11,6 +11,7 @@ WORKDIR /app
 COPY server/requirements.txt server/requirements.txt
 RUN pip install --no-cache-dir -r server/requirements.txt
 COPY server server
+COPY ai ai
 COPY --from=webbuild /app/web/dist web/dist
 RUN useradd --uid 10001 --create-home buddy
 USER buddy

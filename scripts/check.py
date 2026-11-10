@@ -1,6 +1,6 @@
 """Run all available checks from the repo root. --release requires every team component."""
 import argparse
-import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def run(*args):
-    subprocess.run(args, cwd=ROOT, check=True)
+    subprocess.run(args, cwd=ROOT, check=True, env={**os.environ, "AI_MODE": "demo"})
 
 
 def main():
@@ -25,6 +25,9 @@ def main():
     if (ROOT / "ai").is_dir():
         suites.append("ai/tests")
     run(sys.executable, "-m", "coverage", "run", "--source=" + sources, "-m", "pytest", "-q", *suites)
+    if (ROOT / "ai").is_dir():
+        run(sys.executable, "-m", "coverage", "run", "--append", "--source=" + sources,
+            "-m", "ai.evals.run")
     run(sys.executable, "-m", "coverage", "json")
     run(sys.executable, "-m", "coverage", "report")
     if (ROOT / "web").is_dir():

@@ -12,7 +12,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from server.access import AccessError, confirm_proposal, create_proposal
 from server.operator_demo import operator_blueprint
-from server.dialog import AgentRunner, AgentUnavailable, DemoAgent
+from server.dialog import AgentRunner, AgentUnavailable
 
 COOKIE = "buddy_session"
 SESSION_SECONDS = 8 * 60 * 60
@@ -118,9 +118,17 @@ def create_app(config=None):
     agent = app.config.get("AGENT")
     if agent is None and factory_path:
         agent = import_string(factory_path)()
-    mode = "live" if agent is not None else "demo"
-    runner = AgentRunner(agent if agent is not None else DemoAgent(),
-                         app.config.get("AGENT_TIMEOUT", 10), mode)
+    if agent is None:
+        from ai.agent import create_agent
+        agent = create_agent()
+    mode = getattr(agent, "mode", "live")
+    timeout = float(app.config.get("AGENT_TIMEOUT", os.environ.get("BUDDY_AGENT_TIMEOUT", "12")))
+    if mode not in ("demo", "live") or not 0 < timeout <= 65:
+        raise ValueError("Invalid agent mode or response timeout")
+    provider_timeout = getattr(getattr(agent, "classifier", None), "timeout", 0)
+    if provider_timeout >= timeout:
+        raise ValueError("BUDDY_AGENT_TIMEOUT must exceed AI_TIMEOUT_SECONDS")
+    runner = AgentRunner(agent, timeout, mode)
 
     def connect():
         return psycopg.connect(app.config["DATABASE_URL"], row_factory=dict_row)

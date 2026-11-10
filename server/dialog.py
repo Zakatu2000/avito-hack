@@ -25,30 +25,6 @@ class ScopedReadTools:
         return deepcopy(self._workspace["request"])
 
 
-class DemoAgent:
-    def respond(self, text, tools):
-        task = tools.current_task()
-        ticket = tools.current_request()
-        source = tools.instruction()
-        kind = "answer"
-        if not task:
-            kind, reply = "handoff", "Попросите наставника назначить первую задачу."
-        elif tools.effective_access() == "granted":
-            reply = f"Доступ подтверждён. Следующий шаг: {task['title']}. Если ссылка не открывается, уточните ошибку."
-        elif ticket:
-            steps = {"pending": "ожидает согласования", "approved": "одобрена, ожидаем выдачу права",
-                     "rejected": "отклонена, уточните причину у наставника"}
-            reply = f"Заявка {ticket['requestId']}: {steps[ticket['requestStatus']]}."
-        elif tools.effective_access() == "missing" and any(
-            word in text.casefold() for word in ("начать", "задач", "доступ", "откры", "репозит", "открыть")
-        ):
-            kind, reply = "propose_access", f"Для задачи «{task['title']}» нет доступа. Подготовить заявку на чтение?"
-        else:
-            kind, reply = "clarify", "Что именно не получается сделать в первой задаче?"
-        return {"kind": kind, "text": reply, "sourceId": source["sourceId"] if source else None,
-                "aiMode": "demo"}
-
-
 class AgentRunner:
     """Bound both response time and outstanding calls; a provider must also set its own IO timeout."""
     def __init__(self, agent, timeout, mode):

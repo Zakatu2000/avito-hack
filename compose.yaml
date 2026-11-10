@@ -20,6 +20,13 @@ services:
     environment:
       DATABASE_URL: postgresql://buddy:${POSTGRES_PASSWORD}@db:5432/avito_buddy_demo
       BUDDY_DEMO_OPERATOR: ${BUDDY_DEMO_OPERATOR:-0}
+      AI_MODE: ${AI_MODE:-demo}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.z.ai/api/paas/v4}
+      AI_MODEL: ${AI_MODEL:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-8}
+      AI_MAX_TOKENS: ${AI_MAX_TOKENS:-1024}
+      BUDDY_AGENT_TIMEOUT: ${BUDDY_AGENT_TIMEOUT:-12}
     ports:
       - "127.0.0.1:${BUDDY_PORT:-5050}:5050"
     depends_on:

@@ -28,7 +28,7 @@ def operator_blueprint(connect, session_user_id, cookie_name):
             if "\x00" in request_id:
                 raise AccessError(400, "Проверьте ввод")
             ticket = conn.execute("""
-                SELECT t.id, t.status, t.user_id, t.resource_id
+                SELECT t.id, t.status, t.user_id, t.resource_id, t.assignment_id
                 FROM access_requests t JOIN assignments a ON a.id=t.assignment_id
                 JOIN users u ON u.id=t.user_id AND a.user_id=u.id
                 JOIN resources r ON r.id=t.resource_id AND r.id=a.resource_id
@@ -45,9 +45,14 @@ def operator_blueprint(connect, session_user_id, cookie_name):
                 if action == "grant":
                     if ticket["status"] != "approved":
                         raise AccessError(409, "Сначала одобрите заявку")
-                    conn.execute("""INSERT INTO access_grants(user_id,resource_id)
-                                    VALUES (%s,%s) ON CONFLICT DO NOTHING""",
+                    grant = conn.execute("""INSERT INTO access_grants(user_id,resource_id)
+                                    VALUES (%s,%s) ON CONFLICT DO NOTHING RETURNING user_id""",
                                  (ticket["user_id"], ticket["resource_id"]))
+                    if grant.fetchone():
+                        conn.execute("""
+                            INSERT INTO onboarding_events(assignment_id,name,request_id)
+                            VALUES (%s,'access_granted',%s) ON CONFLICT DO NOTHING
+                        """, (ticket["assignment_id"], ticket["id"]))
                 elif action in ("approve", "reject"):
                     target = "approved" if action == "approve" else "rejected"
                     if ticket["status"] not in ("pending", target):
