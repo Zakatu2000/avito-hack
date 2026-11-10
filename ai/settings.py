@@ -12,15 +12,20 @@ Invariant (plan.md A4): AI_MODE=live without a complete provider config is a
 startup error - the service must NOT silently masquerade as demo.
 """
 
+from pathlib import Path
 from typing import Literal
 
 from pydantic import AliasChoices, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# The AI zone config file is ALWAYS ai/.env next to this module - never a
+# stray .env in whatever directory the process happens to run from.
+AI_ENV_FILE = Path(__file__).with_name(".env")
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=AI_ENV_FILE,
         env_file_encoding="utf-8",
         extra="ignore",
         populate_by_name=True,
