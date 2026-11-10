@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>AI-buddy «Первый PR» — продуктовая презентация</title>
+<style>
+  :root{
+    --ink:#1a2233; --muted:#6b7280; --accent:#0d84ff; --bg:#ffffff; --dark:#0f1b33;
+    --ok:#0e9f6e; --warn:#b7791f; --err:#d64545; --line:#e5e7eb; --chip:#eef4ff;
+  }
+  *{box-sizing:border-box; margin:0;}
+  html,body{background:#525659; font-family:'Segoe UI',Roboto,Arial,sans-serif; color:var(--ink);}
+  .slide{
+    width:297mm; min-height:167mm; background:var(--bg); margin:8mm auto; padding:14mm 16mm;
+    box-shadow:0 2px 12px rgba(0,0,0,.35); page-break-after:always; position:relative; overflow:hidden;
+  }
+  @media print{
+    html,body{background:#fff;}
+    .slide{margin:0; box-shadow:none; width:297mm; height:167mm;}
+    @page{size:297mm 167mm; margin:0;}
+  }
+  .kicker{font-size:11pt; text-transform:uppercase; letter-spacing:1.5px; color:var(--accent); font-weight:600; margin-bottom:4mm;}
+  h1{font-size:34pt; line-height:1.15;}
+  h2{font-size:24pt; margin-bottom:5mm;}
+  h3{font-size:14pt; margin:0 0 2mm;}
+  .sub{font-size:13pt; color:var(--muted); margin-top:3mm;}
+  .cols{display:grid; grid-template-columns:1fr 1fr; gap:8mm; margin-top:6mm;}
+  .cols3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:6mm; margin-top:6mm;}
+  .card{border:1px solid var(--line); border-radius:4mm; padding:5mm;}
+  .card.accent{border-color:var(--accent); background:#f7fbff;}
+  ul{padding-left:6mm; font-size:12pt; line-height:1.55;}
+  li{margin-bottom:1.5mm;}
+  .note{font-size:10pt; color:var(--muted); margin-top:3mm;}
+  .tag{display:inline-block; background:var(--chip); color:#2350a8; border-radius:999px; padding:1mm 3.5mm; font-size:9.5pt; margin:1mm 1mm 0 0;}
+  .tag.ok{background:#e6f7f0; color:var(--ok);}
+  .tag.warn{background:#fdf3e3; color:var(--warn);}
+  .tag.err{background:#fdeaea; color:var(--err);}
+  .screen{width:100%; border:1px solid var(--line); border-radius:3mm;}
+  .cap{font-size:10pt; color:var(--muted); margin-top:1.5mm;}
+  .footer{position:absolute; bottom:6mm; left:16mm; right:16mm; display:flex; justify-content:space-between; font-size:9pt; color:var(--muted);}
+  .dark{background:var(--dark); color:#fff;}
+  .dark .sub{color:#9fb0d0;} .dark .kicker{color:#7fb5ff;}
+  .step{display:flex; gap:3mm; align-items:flex-start; margin-bottom:2.5mm;}
+  .stepnum{flex:none; width:8mm; height:8mm; border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:11pt;}
+  table{width:100%; border-collapse:collapse; font-size:11pt;}
+  th,td{border-bottom:1px solid var(--line); padding:2.2mm 2mm; text-align:left; vertical-align:top;}
+  th{color:var(--muted); font-weight:600; font-size:10pt; text-transform:uppercase; letter-spacing:.5px;}
+  .big{font-size:22pt; font-weight:700; color:var(--accent);}
+  .hl{color:var(--accent); font-weight:600;}
+</style>
+</head>
+<body>
+
+<section class="slide dark">
+  <div class="kicker">Hack&amp;Change 2026 · кейс Авито</div>
+  <h1>AI-buddy «Первый PR»</h1>
+  <p class="sub">ИИ-наставник для стажёра: от «не могу открыть репозиторий первой задачи» — до следующего шага по задаче, через подтверждённую заявку на доступ.</p>
+  <div style="margin-top:10mm;">
+    <span class="tag">Web 1 · интерфейс и сквозной путь</span>
+    <span class="tag">Web 2 · сервер, права, выпуск</span>
+    <span class="tag">AI · агент и оценка качества</span>
+  </div>
+  <p class="sub" style="margin-top:8mm;">Все данные синтетические. Учебный пример, не регламент Авито.</p>
+  <div class="footer"><span>AI-buddy «Первый PR»</span><span>1 / 12</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Проблема</div>
+  <h2>Ситуация стажёра</h2>
+  <div class="cols">
+    <div>
+      <ul>
+        <li>Первая задача назначена, но <b>ресурс учебного репозитория не открывается</b> — не хватает права.</li>
+        <li>Инструкции, доступы и порядок согласования живут в разных сервисах; новичку неясно, <b>какой шаг следующий</b> и к кому идти.</li>
+        <li>Стыдно и затратно отвлекать наставника «по мелочам»; наставник тратит время на повторяющиеся объяснения.</li>
+      </ul>
+    </div>
+    <div class="card accent">
+      <h3>Подтверждённая потребность</h3>
+      <ul>
+        <li>Кейс Авито (стр. 4–6): занятость наставника <b>40–48 ч</b> за 6 мес. и <b>55–65 ч</b> за 9 мес. программы — ориентир всей работы наставника (не экономия от помощника).</li>
+        <li>Чек-лист стажёра Авито (Google Sheets, источник кейса): шаги первой недели включают доступы и первую задачу.</li>
+      </ul>
+      <p class="note">Конкретные пункты чек-листа связываются с задачей в SDD (зона AI, A1). Здесь — подтверждение направления, не количественная метрика.</p>
+    </div>
+  </div>
+  <div class="footer"><span>AI-buddy «Первый PR»</span><span>2 / 12</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Решение</div>
+  <h2>Один сквозной сценарий, доведённый до конца</h2>
+  <div class="cols">
+    <div>
+      <div class="step"><span class="stepnum">1</span><div>Стажёр <b>своими словами</b> описывает проблему в помощнике</div></div>
+      <div class="step"><span class="stepnum">2</span><div>Агент уточняет и <b>проверяет назначение и доступ</b> по фактам сервера</div></div>
+      <div class="step"><span class="stepnum">3</span><div>Предлагает заявку — <b>только после явного подтверждения</b> создаётся заявка с номером</div></div>
+      <div class="step"><span class="stepnum">4</span><div>Заявка <b>переживает перезагрузку</b>: тот же ID после обновления страницы</div></div>
+      <div class="step"><span class="stepnum">5</span><div><b>Решение ≠ право</b>: после одобрения стажёр видит «ждём выдачу», а не призыв начинать</div></div>
+      <div class="step"><span class="stepnum">6</span><div>Сервер подтвердил право → <b>следующий шаг из задачи</b> и событие возврата к ней</div></div>
+    </div>
+    <div class="card">
+      <h3>Почему это важно жюри</h3>
+      <ul>
+        <li>Работающий прототип: 35 компонентных тестов + 5 сквозных браузерных сценариев зелёные.</li>
+        <li>Права проверяет <b>только сервер</b>; роль из браузера — не полномочие.</li>
+        <li>Режим AI (реальный/демо) <b>всегда виден</b> на экране.</li>
+        <li>Локальные отклики &lt; 1 с; ожидание LLM не блокирует интерфейс.</li>
+      </ul>
+      <p class="note">Условия измерений — слайд 10.</p>
+    </div>
+  </div>
+  <div class="footer"><span>AI-buddy «Первый PR»</span><span>3 / 12</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Экраны · до заявки</div>
+  <h2>Старт без доступа и живой диалог</h2>
+  <div class="cols">
+    <div>
+      <img class="screen" src="screens/01-start-no-access.png" alt="Экран старта">
+      <p class="cap">1. Старт: задача назначена, доступ к репозиторию отсутствует, разрешённая инструкция под рукой.</p>
+    </div>
+    <div>
+      <img class="screen" src="screens/02-request-created.png" alt="Диалог и созданная заявка">
+      <p class="cap">2. Свободный вопрос → уточнение → карточка предложения → подтверждение → заявка REQ-2026-0142 «на согласовании».</p>
+    </div>
+  </div>
+  <div class="footer"><span>AI-buddy «Первый PR»</span><span>4 / 12</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Экраны · после заявки</div>
+  <h2>Восстановление, ожидание права и следующий шаг</h2>
+  <div class="cols3">
+    <div>
+      <img class="screen" src="screens/03-restored-after-reload.png" alt="Заявка после перезагрузки">
+      <p class="cap">3. После обновления страницы — <b>тот же ID</b> заявки и раздельные признаки решения/доступа.</p>
+    </div>
+    <div>
+      <img class="screen" src="screens/04-approved-waiting-access.png" alt="Одобрено без права">
+      <p class="cap">4. Одобрено, но права нет: объяснение ожидания, кнопки «начать работу» нет.</p>
+    </div>
+    <div>
+      <img class="screen" src="screens/05-access-granted-next-step.png" alt="Доступ выдан">
+      <p class="cap">5. Право подтверждено сервером → шаг из задачи + фиксация возврата.</p>
+    </div>
+  </div>
+  <div class="footer"><span>AI-buddy «Первый PR»</span><span>5 / 12</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Роль AI</div>
+  <h2>Что делает агент — и где его границы</h2>
+  <div class="cols">
+    <div class="card accent">
+      <h3>Агент (слой AI)</h3>
+      <ul>
+        <li>Понимает свободную формулировку и уточняет при неполном контексте.</li>
+        <li>Отвечает <b>из проверенных фактов</b>: назначенная задача, разрешённая инструкция, фактическое право, существующая заявка.</li>
+        <li>Выбирает действие: ответ / уточнение / предложение заявки / показ существующей заявки / передача наставнику.</li>
+        <li>Спецификация поведения — SDD (docs/sdd, зона AI).</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Границы достоверности</h3>
+      <ul>
+        <li>AI <b>не создаёт заявку</b> без подтверждения человеком и <b>не выдаёт права</b>.</li>
+        <li>Запись, проверка прав и идемпотентность — на сервере.</li>
+        <li>Валидация ответа модели; при сбое провайдера — понятное состояние, без ложного успеха.</li>
+        <li>Произвольный текст «доступ выдан» не меняет состояние (тесты A5).</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer"><span>AI-buddy «Первый PR»</span><span>6 / 12</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Безопасность</div>
+  <h2>Проверка прав и работа с данными</h2>
+  <div class="cols3">
+    <div class="card">
+      <h3>Права — на сервере</h3>
+      <ul>
+        <li>Сессия выдаётся сервером; роль из браузера не принимается.</li>
+        <li><span class="hl">effectiveAccess</span> — независимая проверка права, включая «неизвестно».</li>
+        <li><span class="hl">requestStatus</span> — решение по заявке; отдельное событие.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Идемпотентность</h3>
+      <ul>
+        <li>Подтверждение шлёт ID предложения + ключ повтора.</li>
+        <li>Две попытки → одна заявка, один ID (покрыто тестами UI и сервера).</li>
+        <li>Сетевой сбой → сначала восстановление серверного состояния.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Данные</h3>
+      <ul>
+        <li>Только синтетические/обезличенные данные.</li>
+        <li>Недоступные сведения не приходят в ответе — нечему «случайно» показаться.</li>
+        <li>Ключи и секреты не показываются и не логируются.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer"><span>AI-buddy «Первый PR»</span><span>7 / 12</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Честность демонстрации</div>
+  <h2>Граница имитации</h2>
+  <table>
+    <tr><th>Слой</th><th>Сейчас (прототип)</th><th>Замена при внедрении</th></tr>
+    <tr><td>Веб-клиент</td><td><span class="tag ok">реально</span> React+TS, контрактный клиент, 35 тестов</td><td>— (готов)</td></tr>
+    <tr><td>Сквозной путь</td><td><span class="tag ok">реально</span> Playwright, 5 сценариев</td><td>— (готов)</td></tr>
+    <tr><td>API / права</td><td><span class="tag warn">имитация</span> тестовый адаптер с тем же контрактом</td><td>Flask API + PostgreSQL (Web 2, B2–B4)</td></tr>
+    <tr><td>Согласование</td><td><span class="tag warn">имитация</span> панель демооператора</td><td>демоинструмент оператора и HR-система (B5)</td></tr>
+    <tr><td>LLM</td><td><span class="tag warn">деморежим</span> фикстуры формулировок, режим подписан на экране</td><td>LLM-провайдер с валидацией (AI, A4)</td></tr>
+  </table>
+  <p class="note">Режим AI всегда виден в интерфейсе (бейдж в шапке). Имитации переключаются переменной окружения без изменения кода экранов.</p>
+  <div class="footer"><span>AI-buddy «Первый PR»</span><span>8 / 12</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Доказательство</div>
+  <h2>Проверено прогонами</h2>
+  <div class="cols3">
+    <div class="card accent"><div class="big">35 / 35</div><p>компонентных тестов (vitest): клиент, экраны, диалог, подтверждение, состояния</p></div>
+    <div class="card accent"><div class="big">5 / 5</div><p>сквозных браузерных сценариев (Playwright): основной путь, отказ, уже выданный доступ, долгий ответ, отклик &lt; 1 с</p></div>
+    <div class="card accent"><div class="big">&lt; 1 с</div><p>отклик простого локального действия (вход + workspace): ~0,6 с при нулевой задержке имитации</p></div>
+  </div>
+  <ul style="margin-top:5mm;">
+    <li>Основной сценарий воспроизводится из чистого состояния одной командой: <span class="hl">npx playwright test</span>.</li>
+    <li>Отчёт с окружением и ограничениями: <span class="hl">docs/qa/ui.md</span>.</li>
+  </ul>
+  <p class="note">Условия: Windows 11, Node 22.14, Playwright 1.65/Chromium; данные — тестовый адаптер (см. слайд 8).</p>
+  <div class="footer"><span>AI-buddy «Первый PR»</span><span>9 / 12</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Внедрение</div>
+  <h2>Путь в инфраструктуру Авито</h2>
+  <div class="cols">
+    <div>
+      <h3>Совместимость со стеком</h3>
+      <ul>
+        <li>Фронтенд: <b>React + TypeScript</b> — как в стеке Авито.</li>
+        <li>Сервер прототипа: Flask + PostgreSQL (допустим в стеке Авито); прод-контур: Go + PostgreSQL/Redis.</li>
+        <li>Docker Compose, healthcheck, .env.example (Web 2, B6).</li>
+        <li>Действия через MCP-инструменты; события — в аналитику Авито.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Что заменяют адаптеры</h3>
+      <ul>
+        <li>Тестовый вход → SSO/авторизация Авито.</li>
+        <li>Сервис заявок → система согласований (одобрение и выдача права — существующие корпоративные шаги).</li>
+        <li>Демооператор → роль руководителя/наставника.</li>
+        <li>LLM-провайдер → внутренняя модель Авито.</li>
+      </ul>
+      <p class="note">Интеграционная схема вызовов — docs/integration.md (Web 2, B5); слайд отражает план Web 1.</p>
+    </div>
+  </div>
+  <div class="footer"><span>AI-buddy «Первый PR»</span><span>10 / 12</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Пилот</div>
+  <h2>Как проверим пользу (гипотезы и способ проверки)</h2>
+  <table>
+    <tr><th>Метрика</th><th>Что меряем</th><th>Способ проверки</th></tr>
+    <tr><td>Время до корректной заявки</td><td>от первого вопроса до подтверждённой заявки</td><td>события в пилоте: AI-buddy vs обычный процесс (формулы — A6)</td></tr>
+    <tr><td>Ожидание после заявки</td><td>от создания заявки до фактической выдачи права</td><td>серверные события заявки</td></tr>
+    <tr><td>Рутинные обращения к наставнику</td><td>число вопросов «дай доступ» за период</td><td>опрос наставников до/после, дневники 1:1</td></tr>
+    <tr><td>Возврат к задаче</td><td>доля стажёров, вернувшихся к задаче после выдачи права</td><td>событие <span class="hl">task_returned</span> уже фиксируется прототипом</td></tr>
+  </table>
+  <p class="note">Все цифры пилота — план (гипотезы), не измерения. Ориентиры 40–48 ч / 55–65 ч — вся работа наставника из кейса, не приравниваем к экономии. Формулы и знаменатели — docs/pilot.md (AI, A6).</p>
+  <div class="footer"><span>AI-buddy «Первый PR»</span><span>11 / 12</span></div>
+</section>
+
+<section class="slide dark">
+  <div class="kicker">Команда</div>
+  <h2>Один зафиксированный прогон на троих</h2>
+  <div class="cols3">
+    <div class="card" style="background:#16233f; border-color:#2c3d63; color:#dbe6ff;">
+      <h3 style="color:#fff;">Web 1 · интерфейс</h3>
+      <p>Путь стажёра, диалог и подтверждение, восстановление заявки, сквозные тесты, презентация и видео.</p>
+    </div>
+    <div class="card" style="background:#16233f; border-color:#2c3d63; color:#dbe6ff;">
+      <h3 style="color:#fff;">Web 2 · сервер и выпуск</h3>
+      <p>Контракт, сессии и права, идемпотентные заявки, демоинструмент оператора, Docker и сдача.</p>
+    </div>
+    <div class="card" style="background:#16233f; border-color:#2c3d63; color:#dbe6ff;">
+      <h3 style="color:#fff;">AI · агент</h3>
+      <p>SDD и источники, оркестрация диалога, LLM-провайдер и деморежим, оценка качества, метрики пилота.</p>
+    </div>
+  </div>
+  <p class="sub" style="margin-top:8mm;">Репозиторий: https://github.com/Zakatu2000/avito-hack · ветки web1 / web2 / ai · сквозной прогон — по README.</p>
+  <p class="sub">Демо: Web 1 проходит путь стажёра, Web 2 одобряет и выдаёт право из отдельной сессии, AI объясняет, какие факты изменили ответ.</p>
+  <div class="footer" style="color:#9fb0d0;"><span>AI-buddy «Первый PR» · синтетические данные</span><span>12 / 12</span></div>
+</section>
+
+</body>
+</html>
