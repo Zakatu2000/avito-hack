@@ -1,0 +1,22 @@
+FROM python:3.12-slim AS runtime
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+WORKDIR /app
+COPY server/requirements.txt server/requirements.txt
+RUN pip install --no-cache-dir -r server/requirements.txt
+COPY server server
+RUN useradd --uid 10001 --create-home buddy
+USER buddy
+EXPOSE 5050
+CMD ["sh", "-c", "python -m server.store migrate && python -m server.store seed && exec python -m waitress --listen=0.0.0.0:5050 --call server.app:create_app"]
+
+FROM runtime AS checks
+USER root
+COPY server/requirements-test.txt server/requirements-test.txt
+COPY contracts/requirements.txt contracts/requirements.txt
+RUN pip install --no-cache-dir -r server/requirements-test.txt -r contracts/requirements.txt
+COPY contracts contracts
+COPY scripts scripts
+COPY .coveragerc .coveragerc
+RUN mkdir -p reports && chown buddy:buddy reports
+USER buddy
+CMD ["python", "scripts/check.py"]

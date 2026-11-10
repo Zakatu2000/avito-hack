@@ -115,3 +115,35 @@ B1 · Контракт v1.2.0 для разработки веб-клиента 
     curl -sS -b /tmp/first-pr-operator.cookies -H 'Content-Type: application/json' -d '{"confirm":"reset-demo"}' http://127.0.0.1:5050/demo/reset
 
 [Схема интеграций и условия перехода к пилоту](docs/integration.md).
+
+## B6 · запуск серверной сборки через Docker Compose
+
+Скопируйте `.env.example` в `.env`. Это локальные демонстрационные реквизиты. Порт публикуется только на 127.0.0.1. Включите BUDDY_DEMO_OPERATOR=1 для показа согласования.
+
+    cp .env.example .env
+    docker compose up --build -d api
+    docker compose ps
+    curl -fsS http://127.0.0.1:5050/health
+
+Миграции и синтетические данные устанавливаются при старте. Данные находятся в именованном томе PostgreSQL. Для штатной остановки используйте `docker compose down`. После следующего старта данные сохраняются.
+
+Сейчас Compose запускает API и PostgreSQL. Интерфейс Web 1 и внешний AI-адаптер ещё ожидаются. Для демо текущего сервера используйте HTTP-примеры выше.
+
+### Единая проверка
+
+Для проверки контейнером создайте папку отчётов и передайте свой UID/GID для записи результатов на Linux:
+
+    mkdir -p reports
+    LOCAL_UID=$(id -u) LOCAL_GID=$(id -g) docker compose --profile checks run --build --rm checks
+
+Локальная проверка с уже запущенным тестовым PostgreSQL:
+
+    .venv/bin/pip install -r server/requirements-test.txt -r contracts/requirements.txt
+    export TEST_ADMIN_DATABASE_URL='postgresql://buddy:local-demo-only@127.0.0.1:55432/postgres'
+    .venv/bin/python scripts/check.py
+
+Команда проверяет контракт, запускает тесты и измеряет строки выполняемого Python-кода. Отчёты находятся в reports/python-coverage.json и reports/summary.json. Зависимости и тесты исключены. SQL-миграции проверяются интеграционными тестами, coverage.py измеряет Python. Покрытие доступного прикладного кода должно быть строго больше 80%.
+
+При добавлении ai/ запуск включает ai/tests и измеряет ai/ вместе с server/ одним инструментом. При добавлении web/ ожидается `npm run test:coverage` в этой папке, свежий отчёт web/coverage/lcov.info со всеми файлами web/src. Пути SF относительны web/ либо абсолютны. Определения типов *.d.ts и тесты исключены из инвентаризации. Генерируемые файлы не помещайте в эти каталоги прикладного кода.
+
+В итоговом проценте суммируются покрытые и учитываемые строки, каждый файл включается один раз. Проверка полноты требует измерений для всех исходников. Для финальной сборки выполните `python scripts/check.py --release`: отсутствие web/ или ai/ завершит проверку ошибкой. Эти части должны быть добавлены до полной приёмки B6.

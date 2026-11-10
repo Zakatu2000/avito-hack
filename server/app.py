@@ -154,6 +154,12 @@ def create_app(config=None):
         }[error.status_code]
         return jsonify(code=code, message=message), error.status_code
 
+    @app.get("/health")
+    def health():
+        with connect() as conn:
+            conn.execute("SELECT 1").fetchone()
+        return jsonify(status="ok")
+
     @app.post("/api/session")
     def login():
         data = request.get_json(silent=True)
