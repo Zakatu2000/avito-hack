@@ -6,6 +6,7 @@ from agent.base import Agent
 from agent.policy import BuddyAgent
 from context.models import AiMode, Workspace
 from context.tools import WorkspaceTools
+from evals.server_check import check_decision
 
 VALID_KINDS = ("answer", "clarify", "handoff", "propose_access")
 
@@ -13,16 +14,12 @@ VALID_KINDS = ("answer", "clarify", "handoff", "propose_access")
 def assert_decision_passes_runner_validation(
     decision: Any, *, mode: str, source_id: str | None
 ) -> None:
-    """Mirror of server/dialog.py AgentRunner checks (contract v1.0.0).
+    """Assert the mirrored server/dialog.py AgentRunner checks (contract v1.0.0).
 
-    Keep in sync with the server; a divergence must be caught here first.
+    The mirror itself lives in evals/server_check.py (single source for the
+    AI zone). A divergence with the server must be caught here first.
     """
-    assert isinstance(decision, dict)
-    assert set(decision) == {"kind", "text", "sourceId", "aiMode"}
-    assert decision["kind"] in VALID_KINDS
-    assert isinstance(decision["text"], str) and decision["text"].strip()
-    assert decision["aiMode"] == mode
-    assert decision["sourceId"] in (None, source_id)
+    assert check_decision(decision, mode=mode, source_id=source_id) == []
 
 
 def test_buddy_agent_demo_returns_valid_contract_decision(
