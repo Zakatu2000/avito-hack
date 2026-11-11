@@ -15,6 +15,12 @@ export class ApiError extends Error {
   }
 }
 
+export function getErrorMessage(err: unknown, fallback = 'Что-то пошло не так. Попробуй ещё раз'): string {
+  if (err instanceof ApiError) return err.message
+  if (err instanceof Error && err.message) return err.message
+  return fallback
+}
+
 const BASE_URL = import.meta.env.VITE_API_URL || ''
 
 function resolveUrl(path: string): string {
