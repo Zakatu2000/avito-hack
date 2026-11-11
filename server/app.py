@@ -13,6 +13,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from server.access import AccessError, confirm_proposal, create_proposal
 from server.operator_demo import operator_blueprint
 from server.dialog import AgentRunner, AgentUnavailable, DemoAgent
+from server.buddy_api import buddy_blueprint
 
 COOKIE = "buddy_session"
 SESSION_SECONDS = 8 * 60 * 60
@@ -327,6 +328,7 @@ def create_app(config=None):
                 raise AccessError(403, "Операция недоступна")
             return jsonify(state)
 
+    app.register_blueprint(buddy_blueprint(connect, session_user_id, COOKIE, mode))
     if app.config["DEMO_OPERATOR"]:
         app.register_blueprint(operator_blueprint(connect, session_user_id, COOKIE))
     return app
