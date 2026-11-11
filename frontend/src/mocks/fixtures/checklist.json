@@ -1,0 +1,190 @@
+[
+  {
+    "id": "wk1",
+    "title": "1-я неделя",
+    "period": "Знакомство",
+    "items": [
+      {
+        "id": "wk1-chats",
+        "title": "Чаты и каналы",
+        "description": "Вступи в командные чаты и каналы, отметься коротким приветствием.",
+        "nextStep": "Найди канал #team-interns и напиши, кто ты и чем будешь заниматься.",
+        "requiresApproval": false,
+        "deadline": "до конца 1-й недели",
+        "actionLink": null
+      },
+      {
+        "id": "wk1-access",
+        "title": "Доступы: Confluence и Jira",
+        "description": "Основные рабочие системы. Без них не получится брать задачи и читать документацию.",
+        "nextStep": "Отправь запрос доступа через AI-buddy — хватит пары кликов.",
+        "requiresApproval": false,
+        "deadline": "до конца 1-й недели",
+        "actionLink": "/requests/new/access"
+      },
+      {
+        "id": "wk1-1to1",
+        "title": "1:1 с наставником",
+        "description": "Познакомьтесь, обсуди формат работы и план на стажировку.",
+        "nextStep": "Напиши Марине в чат и договорись о звонке на этой неделе.",
+        "requiresApproval": true,
+        "deadline": "до конца 1-й недели",
+        "actionLink": "/contacts"
+      },
+      {
+        "id": "wk1-team",
+        "title": "Знакомство с командой",
+        "description": "Узнай, кто за что отвечает, и запиши контакты.",
+        "nextStep": "Открой «К кому обратиться» и сохрани себе карточки коллег.",
+        "requiresApproval": false,
+        "deadline": null,
+        "actionLink": "/contacts"
+      }
+    ]
+  },
+  {
+    "id": "wk2",
+    "title": "2-я неделя",
+    "period": "Первые задачи",
+    "items": [
+      {
+        "id": "wk2-env",
+        "title": "Настройка окружения",
+        "description": "Подними локальный стенд по инструкции из базы знаний.",
+        "nextStep": "Следуй шагам статьи «Настройка окружения» в разделе «База знаний».",
+        "requiresApproval": false,
+        "deadline": "до конца 2-й недели",
+        "actionLink": "/kb"
+      },
+      {
+        "id": "wk2-docs",
+        "title": "Документы и мануалы",
+        "description": "README команды, гайд по код-ревью, регламент релизов.",
+        "nextStep": "Прочитай три базовые статьи и отметь пункт готовым.",
+        "requiresApproval": false,
+        "deadline": null,
+        "actionLink": "/kb"
+      },
+      {
+        "id": "wk2-first-task",
+        "title": "Первая задача в Jira",
+        "description": "Возьми тикет уровня starter и доведи его до код-ревью.",
+        "nextStep": "Выбери тикет со статусом «starter» в спринте стажёров и напиши Марине, что берёшь его.",
+        "requiresApproval": true,
+        "deadline": "до конца 2-й недели",
+        "actionLink": null
+      }
+    ]
+  },
+  {
+    "id": "m1",
+    "title": "1-й месяц",
+    "period": "Самостоятельность",
+    "items": [
+      {
+        "id": "m1-okr",
+        "title": "Цели и OKR",
+        "description": "Сформулируй с руководителем измеримые цели на стажировку.",
+        "nextStep": "Подготовь 3 черновика целей и принеси на 1:1 с Олегом.",
+        "requiresApproval": true,
+        "deadline": "до конца 1-го месяца",
+        "actionLink": null
+      },
+      {
+        "id": "m1-security",
+        "title": "Защита персональных данных",
+        "description": "Обязательный курс по обращению с персональными данными.",
+        "nextStep": "Пройди курс во внутреннем портале обучения и приложи сертификат.",
+        "requiresApproval": true,
+        "deadline": "до конца 1-го месяца",
+        "actionLink": "/kb"
+      },
+      {
+        "id": "m1-review",
+        "title": "Первое код-ревью",
+        "description": "Твой код посмотрел коллега и оставил фидбек.",
+        "nextStep": "Открой PR, пройдись по комментариям и ответь на них.",
+        "requiresApproval": false,
+        "deadline": null,
+        "actionLink": null
+      }
+    ]
+  },
+  {
+    "id": "m2",
+    "title": "2-й месяц",
+    "period": "Разгон",
+    "items": [
+      {
+        "id": "m2-solo",
+        "title": "Самостоятельная задача",
+        "description": "Задача без подсказок наставника — от анализа до релиза.",
+        "nextStep": "Выбери тикет среднего уровня и согласуй оценку с Мариной.",
+        "requiresApproval": true,
+        "deadline": "до конца 2-го месяца",
+        "actionLink": null
+      },
+      {
+        "id": "m2-feedback",
+        "title": "Обратная связь от наставника",
+        "description": "Промежуточный фидбек по итогу двух месяцев.",
+        "nextStep": "Запроси у Марины 30 минут на созвон по фидбеку.",
+        "requiresApproval": false,
+        "deadline": null,
+        "actionLink": "/contacts"
+      },
+      {
+        "id": "m2-midterm-prep",
+        "title": "Подготовка к экватору",
+        "description": "Собери материалы и тезисы выступления на экваторе.",
+        "nextStep": "Выпиши 3 главных результата и 1 сложность, с которой справился.",
+        "requiresApproval": false,
+        "deadline": "до конца 2-го месяца",
+        "actionLink": null
+      }
+    ]
+  },
+  {
+    "id": "fin",
+    "title": "После 3 месяцев",
+    "period": "Экватор и выпуск",
+    "items": [
+      {
+        "id": "fin-midterm",
+        "title": "Экватор",
+        "description": "Защита промежуточных результатов перед руководителем.",
+        "nextStep": "Согласуй слот с Олегом и подготовь презентацию на 10 минут.",
+        "requiresApproval": true,
+        "deadline": "экватор — 6-я неделя",
+        "actionLink": null
+      },
+      {
+        "id": "fin-final",
+        "title": "Выпускной",
+        "description": "Финальная презентация и решение по офферу.",
+        "requiresApproval": true,
+        "deadline": "последняя неделя стажировки",
+        "actionLink": null,
+        "nextStep": "Собери финальную презентацию: результаты, метрики, обучение команды."
+      },
+      {
+        "id": "fin-survey",
+        "title": "Опрос об адаптации",
+        "description": "Анонимный опрос — поможешь сделать программу лучше.",
+        "requiresApproval": false,
+        "deadline": null,
+        "actionLink": null,
+        "nextStep": "Заполни опрос по ссылке из письма HR — это 7 минут."
+      },
+      {
+        "id": "fin-plan",
+        "title": "План развития",
+        "description": "Обсуди с руководителем план на первые 3 месяца после стажировки.",
+        "requiresApproval": false,
+        "deadline": null,
+        "actionLink": null,
+        "nextStep": "Принеси на встречу свои пожелания по направлениям роста."
+      }
+    ]
+  }
+]

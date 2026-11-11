@@ -1,0 +1,10 @@
+{
+  "mentorHoursSaved": {
+    "baseline": { "min": 40, "max": 48 },
+    "target": { "min": 55, "max": 65 },
+    "current": 52
+  },
+  "questionsWithoutMentorShare": 0.62,
+  "timeToFirstTaskDays": { "before": 7.5, "current": 3.2 },
+  "internsOnTrackShare": 0.87
+}

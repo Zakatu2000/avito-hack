@@ -185,3 +185,8 @@ export const ApiErrorBodySchema = z.object({
   message: z.string(),
   code: z.string(),
 })
+
+export type ZodTypeLike<T> = z.ZodType<T>
+
+export const UserListSchema = z.array(UserSchema)
+export const RequestListSchema = z.array(RequestSchema)

@@ -1,0 +1,34 @@
+[
+  {
+    "id": "u-intern-1",
+    "name": "Аня Петрова",
+    "role": "intern",
+    "roleLabel": "Стажёрка-разработчица",
+    "team": "Platform Interns",
+    "initials": "АП"
+  },
+  {
+    "id": "u-intern-2",
+    "name": "Марк Соколов",
+    "role": "intern",
+    "roleLabel": "Стажёр-аналитик",
+    "team": "Platform Interns",
+    "initials": "МС"
+  },
+  {
+    "id": "u-mentor-1",
+    "name": "Марина Ким",
+    "role": "mentor",
+    "roleLabel": "Наставница стажёров",
+    "team": "Platform Interns",
+    "initials": "МК"
+  },
+  {
+    "id": "u-lead-1",
+    "name": "Олег Ветров",
+    "role": "lead",
+    "roleLabel": "Руководитель направления",
+    "team": "Platform Interns",
+    "initials": "ОВ"
+  }
+]
