@@ -30,7 +30,7 @@ const CTX = { userName: 'Аня', mentorName: 'Марина', nextStepTitle: 'Ч
 
 const engine = createKeywordEngine(INTENTS, FALLBACK)
 
-describe('ChatEngine (spec: specs/005-chat-bot.md)', () => {
+describe('ChatEngine (spec: frontend/specs/005-chat-bot.md)', () => {
   it('матчит интент по ключевому слову без учёта регистра', () => {
     const reply = engine.reply('Как оформить ОТПУСК?', CTX)
     expect(reply.intentId).toBe('leave')

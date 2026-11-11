@@ -13,7 +13,7 @@ import { TimelinePage } from '../src/pages/TimelinePage'
 import { useDevStore } from '../src/stores/dev'
 import { loginAs, renderApp, renderWithProviders } from './helpers'
 
-describe('Вход тестовым пользователем (spec: specs/004-roles-permissions.md)', () => {
+describe('Вход тестовым пользователем (spec: frontend/specs/004-roles-permissions.md)', () => {
   it('перенаправляет на /login без входа и пускает дальше после выбора', async () => {
     window.history.replaceState({}, '', '/')
     renderApp()
@@ -32,7 +32,7 @@ describe('Вход тестовым пользователем (spec: specs/004-
   })
 })
 
-describe('Главная (spec: specs/001-adaptation-track.md)', () => {
+describe('Главная (spec: frontend/specs/001-adaptation-track.md)', () => {
   it('показывает прогресс, следующий шаг и быстрые действия', async () => {
     loginAs('intern')
     renderWithProviders(<HomePage />)
@@ -51,7 +51,7 @@ describe('Главная (spec: specs/001-adaptation-track.md)', () => {
   })
 })
 
-describe('Таймлайн адаптации (spec: specs/001-adaptation-track.md)', () => {
+describe('Таймлайн адаптации (spec: frontend/specs/001-adaptation-track.md)', () => {
   it('стажёр ведёт пункт от «не начато» до готово без согласования', async () => {
     loginAs('intern')
     renderWithProviders(<TimelinePage />)
@@ -96,7 +96,7 @@ describe('Таймлайн адаптации (spec: specs/001-adaptation-track.
   })
 })
 
-describe('Отгул: форма → превью → отправка → статус (spec: specs/003-leave-request.md)', () => {
+describe('Отгул: форма → превью → отправка → статус (spec: frontend/specs/003-leave-request.md)', () => {
   it('проходит полный сценарий и сохраняется в «Мои запросы»', async () => {
     loginAs('intern')
     const { unmount } = renderWithProviders(<LeaveFormPage />)
@@ -130,7 +130,7 @@ describe('Отгул: форма → превью → отправка → ст�
   })
 })
 
-describe('Доступ: черновик → отправка → цепочка статусов (spec: specs/002-access-request.md)', () => {
+describe('Доступ: черновик → отправка → цепочка статусов (spec: frontend/specs/002-access-request.md)', () => {
   it('сохраняет черновик и отправляет его из списка', async () => {
     loginAs('intern')
     const { unmount } = renderWithProviders(<AccessFormPage />)
@@ -167,7 +167,7 @@ describe('Доступ: черновик → отправка → цепочка
   })
 })
 
-describe('Чат с ботом (spec: specs/005-chat-bot.md)', () => {
+describe('Чат с ботом (spec: frontend/specs/005-chat-bot.md)', () => {
   it('приветствует, отвечает по интенту и даёт карточку действия', async () => {
     loginAs('intern')
     renderWithProviders(<ChatPage />)
@@ -203,7 +203,7 @@ describe('Чат с ботом (spec: specs/005-chat-bot.md)', () => {
   })
 })
 
-describe('Вид команды и права (spec: specs/004-roles-permissions.md)', () => {
+describe('Вид команды и права (spec: frontend/specs/004-roles-permissions.md)', () => {
   it('стажёру API отдаёт 403 и интерфейс показывает «нет доступа»', async () => {
     loginAs('intern')
     renderWithProviders(<TeamPage />)

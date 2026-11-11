@@ -17,7 +17,7 @@ beforeEach(() => {
   login({ userId: 'u-intern-1' })
 })
 
-describe('сервис: чек-лист (spec: specs/001-adaptation-track.md)', () => {
+describe('сервис: чек-лист (spec: frontend/specs/001-adaptation-track.md)', () => {
   it('возвращает этапы с прокинутыми статусами прогресса', async () => {
     const checklist = await service.getChecklist()
     expect(checklist).toHaveLength(5)
@@ -35,7 +35,7 @@ describe('сервис: чек-лист (spec: specs/001-adaptation-track.md)', 
     expect(checklist[1]?.items.find((i) => i.id === 'wk2-first-task')?.status).toBe('pending_approval')
   })
 
-  it('стажёр не может сам подтвердить пункт с согласованием — 403 (spec: specs/004-roles-permissions.md)', async () => {
+  it('стажёр не может сам подтвердить пункт с согласованием — 403 (spec: frontend/specs/004-roles-permissions.md)', async () => {
     await expect(service.updateItemStatus('m1-okr', 'done')).rejects.toMatchObject({
       status: 403,
       code: 'FORBIDDEN',
@@ -102,7 +102,7 @@ describe('сервис: запросы (specs: 002-access-request.md, 003-leave-
     expect(granted.history.at(-1)?.status).toBe('Выдан')
   })
 
-  it('стажёр не может согласовать запрос — 403 (spec: specs/004-roles-permissions.md)', async () => {
+  it('стажёр не может согласовать запрос — 403 (spec: frontend/specs/004-roles-permissions.md)', async () => {
     const seeded = getDb().requests.find((r) => r.id === 'req-leave-1001')
     expect(seeded).toBeDefined()
     await expect(service.approveRequest('req-leave-1001')).rejects.toMatchObject({ status: 403 })
@@ -123,7 +123,7 @@ describe('сервис: запросы (specs: 002-access-request.md, 003-leave-
     expect(all.length).toBeGreaterThan(mine.length)
   })
 
-  it('запросы переживают «перезагрузку страницы» — localStorage (spec: specs/006-mock-services.md)', async () => {
+  it('запросы переживают «перезагрузку страницы» — localStorage (spec: frontend/specs/006-mock-services.md)', async () => {
     const created = await service.createLeaveRequest({
       startDate: tomorrow(),
       endDate: tomorrow(),
@@ -136,7 +136,7 @@ describe('сервис: запросы (specs: 002-access-request.md, 003-leave-
   })
 })
 
-describe('сервис: роли и права (spec: specs/004-roles-permissions.md)', () => {
+describe('сервис: роли и права (spec: frontend/specs/004-roles-permissions.md)', () => {
   it('очередь согласования недоступна стажёру — 403', async () => {
     await expect(service.listRequests('queue')).rejects.toMatchObject({ status: 403 })
   })
@@ -161,7 +161,7 @@ describe('сервис: роли и права (spec: specs/004-roles-permission
   })
 })
 
-describe('сервис: имитация сбоев и задержек (spec: specs/006-mock-services.md)', () => {
+describe('сервис: имитация сбоев и задержек (spec: frontend/specs/006-mock-services.md)', () => {
   it('возвращает 500 при включённом режиме сбоя', async () => {
     useDevStore.setState({ failureMode: 'always' })
     await expect(service.getChecklist()).rejects.toMatchObject({
@@ -171,7 +171,7 @@ describe('сервис: имитация сбоев и задержек (spec: s
   })
 })
 
-describe('сервис: чат (spec: specs/005-chat-bot.md)', () => {
+describe('сервис: чат (spec: frontend/specs/005-chat-bot.md)', () => {
   it('отвечает по интенту и подставляет следующий шаг', async () => {
     const reply = await service.sendChatMessage('как оформить отгул?')
     expect(reply.intentId).toBe('leave')
