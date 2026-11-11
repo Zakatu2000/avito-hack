@@ -5,7 +5,7 @@ import { useCreateLeaveRequest } from '../api/hooks'
 import { LeaveRequestInputSchema, type LeaveRequestInput, type LeaveReason } from '../api/schemas'
 import { Button } from '../components/ui/Button'
 import { DatePicker } from '../components/ui/DatePicker'
-import { Input, Textarea } from '../components/ui/Input'
+import { Textarea } from '../components/ui/Input'
 import { BottomSheet, Modal } from '../components/ui/Overlay'
 import { Select } from '../components/ui/Select'
 import { toast } from '../components/ui/Toast'
@@ -135,7 +135,6 @@ export function LeaveFormPage() {
           <DatePicker
             label="Дата начала"
             name="leave-start"
-            required
             min={todayISO()}
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
@@ -144,7 +143,6 @@ export function LeaveFormPage() {
           <DatePicker
             label="Дата окончания"
             name="leave-end"
-            required
             min={startDate || todayISO()}
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
@@ -154,7 +152,6 @@ export function LeaveFormPage() {
         <Select
           label="Причина"
           name="leave-reason"
-          required
           placeholder="Выбери причину"
           options={REASON_OPTIONS}
           value={reason}
@@ -171,7 +168,6 @@ export function LeaveFormPage() {
           error={errors.comment}
           hint="До 300 символов"
         />
-        <Input type="hidden" name="noop" style={{ display: 'none' }} />
         <div style={{ display: 'flex', gap: 8 }}>
           <Button type="submit">Предпросмотр и отправка</Button>
           <Button variant="ghost" onClick={() => navigate('/requests')}>

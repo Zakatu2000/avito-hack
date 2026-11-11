@@ -38,17 +38,7 @@ function ItemActions({
   onChange: (status: ItemStatus) => void
 }) {
   if (item.status === 'done') return <StatusBadge status="done" />
-  if (item.status === 'pending_approval') {
-    if (isApprover) {
-      return (
-        <Button size="s" loading={loading} onClick={() => onChange('done')}>
-          Подтвердить
-        </Button>
-      )
-    }
-    return <StatusBadge status="pending_approval" />
-  }
-  if (isApprover) return <StatusBadge status={item.status} />
+  if (item.status === 'pending_approval' || isApprover) return <StatusBadge status={item.status} />
   if (item.status === 'not_started') {
     return (
       <Button size="s" variant="secondary" loading={loading} onClick={() => onChange('in_progress')}>
@@ -159,7 +149,7 @@ export function TimelinePage() {
 
       {isApprover && (
         <p className="caption">
-          Как наставник или руководитель ты можешь подтверждать пункты в статусе «Ждёт согласования».
+          Пункты стажёров в статусе «Ждёт согласования» подтверждай в разделе «Команда».
         </p>
       )}
     </div>

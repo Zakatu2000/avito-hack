@@ -162,6 +162,16 @@ export const InternSummarySchema = z.object({
 export type InternSummary = z.infer<typeof InternSummarySchema>
 export const InternListSchema = z.array(InternSummarySchema)
 
+export const PendingItemSchema = z.object({
+  userId: z.string(),
+  userName: z.string(),
+  itemId: z.string(),
+  title: z.string(),
+  nextStep: z.string(),
+})
+export type PendingItem = z.infer<typeof PendingItemSchema>
+export const PendingItemListSchema = z.array(PendingItemSchema)
+
 /* ---------- Чат ---------- */
 
 export const ChatActionSchema = z.object({

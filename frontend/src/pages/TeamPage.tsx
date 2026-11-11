@@ -1,10 +1,63 @@
-import { ApiError } from '../api/client'
-import { useInterns } from '../api/hooks'
+import { useState } from 'react'
+import { ApiError, getErrorMessage } from '../api/client'
+import { useApproveChecklistItem, useInterns, usePendingItems } from '../api/hooks'
+import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
+import { ListItem } from '../components/ui/ListItem'
 import { ProgressBar } from '../components/ui/ProgressBar'
 import { SkeletonCard } from '../components/ui/Skeleton'
 import { ErrorState, NoAccess } from '../components/ui/States'
+import { StatusBadge } from '../components/ui/StatusBadge'
+import { toast } from '../components/ui/Toast'
 import { RequestsPage } from './RequestsPage'
+
+function PendingItemsSection() {
+  const pending = usePendingItems()
+  const approve = useApproveChecklistItem()
+  const [approvingKey, setApprovingKey] = useState<string | null>(null)
+
+  if (pending.isLoading) return <SkeletonCard lines={2} />
+  if (pending.isError || !pending.data || pending.data.length === 0) return null
+
+  return (
+    <section aria-label="Пункты на подтверждение" className="stack">
+      <h2 className="section-title">Пункты на подтверждение</h2>
+      {pending.data.map((item) => {
+        const key = `${item.userId}:${item.itemId}`
+        return (
+          <ListItem
+            key={key}
+            icon="⏳"
+            title={`${item.userName}: ${item.title}`}
+            subtitle={item.nextStep}
+            right={
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <StatusBadge status="pending_approval" />
+                <Button
+                  size="s"
+                  loading={approve.isPending && approvingKey === key}
+                  onClick={() => {
+                    setApprovingKey(key)
+                    approve.mutate(
+                      { itemId: item.itemId, userId: item.userId },
+                      {
+                        onSuccess: () => toast('Пункт подтверждён', 'success'),
+                        onError: (err) => toast(getErrorMessage(err), 'error'),
+                        onSettled: () => setApprovingKey(null),
+                      },
+                    )
+                  }}
+                >
+                  Подтвердить
+                </Button>
+              </div>
+            }
+          />
+        )
+      })}
+    </section>
+  )
+}
 
 export function TeamPage() {
   const interns = useInterns()
@@ -69,6 +122,7 @@ export function TeamPage() {
               ))}
             </div>
           </section>
+          <PendingItemsSection />
           <RequestsPage />
         </>
       )}

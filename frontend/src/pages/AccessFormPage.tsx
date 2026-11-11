@@ -132,7 +132,6 @@ export function AccessFormPage() {
           <Select
             label="Система"
             name="access-system"
-            required
             placeholder="Выбери систему"
             options={systems.data.map((s) => ({ value: s.id, label: s.name }))}
             value={systemId}
@@ -143,7 +142,6 @@ export function AccessFormPage() {
           <Textarea
             label="Для какой задачи нужен доступ"
             name="access-justification"
-            required
             rows={3}
             placeholder="Например: нужен Jira, чтобы брать задачи из спринта стажёров"
             value={justification}

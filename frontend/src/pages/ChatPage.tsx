@@ -67,7 +67,8 @@ export function ChatPage() {
   }, [messages.length, addBot])
 
   useEffect(() => {
-    logRef.current?.scrollTo({ top: logRef.current.scrollHeight })
+    const el = logRef.current
+    if (el && typeof el.scrollTo === 'function') el.scrollTo({ top: el.scrollHeight })
   }, [messages.length, typing])
 
   const send = (text: string) => {

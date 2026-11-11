@@ -186,7 +186,7 @@ export const handlers = [
     const denied = authError(request)
     if (denied) return denied
     const body = await request.json().catch(() => null)
-    const payload = LeavePayloadSchema.omit({}).safeParse(body)
+    const payload = LeavePayloadSchema.omit({ kind: true }).safeParse(body)
     if (!payload.success) {
       return errorJson(400, 'Проверь поля формы отгула: даты и причина', 'BAD_REQUEST')
     }
@@ -200,7 +200,7 @@ export const handlers = [
           authorName: user.name,
           status: saveDraft ? 'draft' : 'sent',
           approvers: ['Марина Ким', 'Олег Ветров'],
-          payload: payload.data,
+          payload: { kind: 'leave', ...payload.data },
         },
         saveDraft,
       )
@@ -212,7 +212,7 @@ export const handlers = [
     const denied = authError(request)
     if (denied) return denied
     const body = await request.json().catch(() => null)
-    const payload = AccessPayloadSchema.safeParse(body)
+    const payload = AccessPayloadSchema.omit({ kind: true }).safeParse(body)
     if (!payload.success) {
       return errorJson(400, 'Проверь поля формы доступа: система и обоснование', 'BAD_REQUEST')
     }
@@ -226,7 +226,7 @@ export const handlers = [
           authorName: user.name,
           status: saveDraft ? 'draft' : 'sent',
           approvers: ['Олег Ветров'],
-          payload: payload.data,
+          payload: { kind: 'access', ...payload.data },
         },
         saveDraft,
       )
@@ -363,6 +363,67 @@ export const handlers = [
           }
         }),
       )
+    })
+  }),
+
+  /* ---------- Очередь подтверждения пунктов чек-листа ---------- */
+  http.get('/api/pending-items', ({ request }) => {
+    const denied = authError(request)
+    if (denied) return denied
+    return withSimulation(() => {
+      const user = currentUser(request)!
+      if (!APPROVERS.includes(user.role)) {
+        return errorJson(403, 'Очередь подтверждения доступна наставнику и руководителю', 'FORBIDDEN')
+      }
+      const pending = USERS.filter((u) => u.role === 'intern').flatMap((intern) => {
+        const checklist = buildChecklist(intern.id)
+        return checklist
+          .flatMap((stage) => stage.items)
+          .filter((item) => item.status === 'pending_approval')
+          .map((item) => ({
+            userId: intern.id,
+            userName: intern.name,
+            itemId: item.id,
+            title: item.title,
+            nextStep: item.nextStep,
+          }))
+      })
+      return HttpResponse.json(pending)
+    })
+  }),
+
+  http.post<PathParams, { userId: string }>('/api/checklist/items/:id/approve', async ({ request, params }) => {
+    const denied = authError(request)
+    if (denied) return denied
+    const body = (await request.json().catch(() => null)) as { userId?: string } | null
+    return withSimulation(() => {
+      const user = currentUser(request)!
+      if (!APPROVERS.includes(user.role)) {
+        return errorJson(403, 'Подтверждать пункты могут только наставник и руководитель', 'FORBIDDEN')
+      }
+      const itemId = String(params.id)
+      const targetUserId = body?.userId
+      const target = USERS.find((u) => u.id === targetUserId && u.role === 'intern')
+      if (!target) return errorJson(404, 'Стажёр не найден', 'NOT_FOUND')
+      const item = flatItems().find((i) => i.id === itemId)
+      if (!item) return errorJson(404, 'Пункт чек-листа не найден', 'NOT_FOUND')
+      mutateDb((db) => {
+        db.progress[target.id] = db.progress[target.id] ?? {}
+        db.progress[target.id][itemId] = 'done'
+      })
+      const pending = USERS.filter((u) => u.role === 'intern').flatMap((intern) =>
+        buildChecklist(intern.id)
+          .flatMap((stage) => stage.items)
+          .filter((it) => it.status === 'pending_approval')
+          .map((it) => ({
+            userId: intern.id,
+            userName: intern.name,
+            itemId: it.id,
+            title: it.title,
+            nextStep: it.nextStep,
+          })),
+      )
+      return HttpResponse.json(pending)
     })
   }),
 

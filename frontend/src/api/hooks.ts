@@ -121,6 +121,28 @@ export function useInterns() {
   return useQuery({ queryKey: ['interns'], queryFn: () => service.getInterns(), enabled: !!userId })
 }
 
+export function usePendingItems() {
+  const userId = useAuthStore((s) => s.userId)
+  return useQuery({
+    queryKey: ['pending-items'],
+    queryFn: () => service.getPendingItems(),
+    enabled: !!userId,
+  })
+}
+
+export function useApproveChecklistItem() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ itemId, userId }: { itemId: string; userId: string }) =>
+      service.approveChecklistItem(itemId, userId),
+    onSuccess: (pending) => {
+      qc.setQueryData(['pending-items'], pending)
+      void qc.invalidateQueries({ queryKey: ['interns'] })
+      void qc.invalidateQueries({ queryKey: ['checklist'] })
+    },
+  })
+}
+
 export function useSendChatMessage() {
   return useMutation({ mutationFn: (message: string) => service.sendChatMessage(message) })
 }

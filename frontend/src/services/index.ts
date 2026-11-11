@@ -13,6 +13,8 @@ import {
   RequestListSchema,
   UserListSchema,
   UserSchema,
+  PendingItemListSchema,
+  type PendingItem,
   type AccessRequestInput,
   type ChatReply,
   type Checklist,
@@ -58,6 +60,8 @@ export interface BuddyService {
   getAccessSystems(): Promise<AccessSystem[]>
   getMetrics(): Promise<Metrics>
   getInterns(): Promise<InternSummary[]>
+  getPendingItems(): Promise<PendingItem[]>
+  approveChecklistItem(itemId: string, userId: string): Promise<PendingItem[]>
   sendChatMessage(message: string): Promise<ChatReply>
 }
 
@@ -73,13 +77,13 @@ export const service: BuddyService = {
     }),
   listRequests: (scope) =>
     apiFetch(scope ? `/api/requests?scope=queue` : '/api/requests', { schema: RequestListSchema }),
-  createLeaveRequest: (input) =>
+  createLeaveRequest: async (input) =>
     apiFetch('/api/requests/leave', {
       method: 'POST',
       body: LeaveRequestInputSchema.parse(input),
       schema: RequestSchema,
     }),
-  requestAccess: (input) =>
+  requestAccess: async (input) =>
     apiFetch('/api/requests/access', {
       method: 'POST',
       body: AccessRequestInputSchema.parse(input),
@@ -96,6 +100,13 @@ export const service: BuddyService = {
   getAccessSystems: () => apiFetch('/api/access-systems', { schema: AccessSystemListSchema }),
   getMetrics: () => apiFetch('/api/metrics', { schema: MetricsSchema }),
   getInterns: () => apiFetch('/api/interns', { schema: InternListSchema }),
+  getPendingItems: () => apiFetch('/api/pending-items', { schema: PendingItemListSchema }),
+  approveChecklistItem: (itemId, userId) =>
+    apiFetch(`/api/checklist/items/${itemId}/approve`, {
+      method: 'POST',
+      body: { userId },
+      schema: PendingItemListSchema,
+    }),
   sendChatMessage: (message) =>
     apiFetch('/api/chat', { method: 'POST', body: { message }, schema: ChatReplySchema }),
 }
