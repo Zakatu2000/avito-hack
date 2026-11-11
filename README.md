@@ -172,7 +172,7 @@ Compose собирает React-интерфейс и раздаёт его вм�
 
 ## AI A1–A6
 
-Поведение и источники — [docs/sdd/agent.md](docs/sdd/agent.md) и [docs/sdd/sources.md](docs/sdd/sources.md). Приёмочные случаи — ai/evals/dataset.json (29 офлайн-диалогов). Провайдер и переменные — [ai/README.md](ai/README.md).
+Поведение и источники — [docs/sdd/agent.md](docs/sdd/agent.md) и [docs/sdd/sources.md](docs/sdd/sources.md). Приёмочные случаи — ai/evals/dataset.json (40 офлайн-диалогов + 18 live-записей; live выполняются только с `--live` и ключом). Провайдер и переменные — [ai/README.md](ai/README.md).
 
     cd ai && python -m evals.runner
     python scripts/check.py --release
