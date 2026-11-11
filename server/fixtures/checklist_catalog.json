@@ -1,0 +1,1169 @@
+{
+  "version": "checklist-v1",
+  "generatedAt": "2026-11-11T13:49:47+00:00",
+  "source": {
+    "type": "xlsx",
+    "file": "Чек-лист стажера.xlsx",
+    "snapshot": "sources/xlsx_snapshot.json"
+  },
+  "stages": [
+    {
+      "code": "week-1",
+      "label": "1 неделя",
+      "order": 1
+    },
+    {
+      "code": "week-2",
+      "label": "2 неделя",
+      "order": 2
+    },
+    {
+      "code": "month-1",
+      "label": "1 месяц",
+      "order": 3
+    },
+    {
+      "code": "month-2",
+      "label": "2 месяц",
+      "order": 4
+    },
+    {
+      "code": "month-3",
+      "label": "3 месяц",
+      "order": 5
+    },
+    {
+      "code": "after-month-3",
+      "label": "после 3-х месяцев",
+      "order": 6
+    }
+  ],
+  "tracks": [
+    "common",
+    "backend",
+    "analytics",
+    "marketing"
+  ],
+  "items": [
+    {
+      "id": "common-01",
+      "track": "common",
+      "title": "Организационные моменты",
+      "originalText": "Организационные моменты",
+      "description": "1. Добавь стажёра во все необходимые чаты и каналы, в том числе в закрытые\n 2. Проверь, запросил ли стажёр доступы ко всем необходимым программам, инструментам и пространствам (Confluence, Jira и т. д.)\n 3. Назначь со стажёром регулярные 1:1, на которых будешь рассказывать об особенностях работы в команде, инструментах, задачах и т. д.\n 4. Обсуди цели и план на период адаптации, критерии успешного прохождения стажировки. Расскажи про целеполагание в команде и планы на ближайший период (OKR)",
+      "instructions": [
+        "Добавь стажёра во все необходимые чаты и каналы, в том числе в закрытые",
+        "Проверь, запросил ли стажёр доступы ко всем необходимым программам, инструментам и пространствам (Confluence, Jira и т. д.)",
+        "Назначь со стажёром регулярные 1:1, на которых будешь рассказывать об особенностях работы в команде, инструментах, задачах и т. д.",
+        "Обсуди цели и план на период адаптации, критерии успешного прохождения стажировки. Расскажи про целеполагание в команде и планы на ближайший период (OKR)"
+      ],
+      "stage": "week-1",
+      "stageOrder": 1,
+      "stageLabel": "1 неделя",
+      "actor": "mentor",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Материалы для всех",
+        "row": 2
+      }
+    },
+    {
+      "id": "common-02",
+      "track": "common",
+      "title": "Запроси у куратора стажировки методичку наставника",
+      "originalText": "Запроси у куратора стажировки методичку наставника",
+      "description": "",
+      "instructions": [],
+      "stage": "week-1",
+      "stageOrder": 1,
+      "stageLabel": "1 неделя",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Материалы для всех",
+        "row": 3
+      }
+    },
+    {
+      "id": "common-03",
+      "track": "common",
+      "title": "Познакомься с командой, с которой будешь работать",
+      "originalText": "Познакомься с командой, с которой будешь работать",
+      "description": "",
+      "instructions": [],
+      "stage": "week-1",
+      "stageOrder": 1,
+      "stageLabel": "1 неделя",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Материалы для всех",
+        "row": 4
+      }
+    },
+    {
+      "id": "common-04",
+      "track": "common",
+      "title": "Работа с наставником",
+      "originalText": "Работа с наставником",
+      "description": "1. Попроси добавить себя во все ключевые каналы и чаты\n 2. Обсуди с наставником встречи, на которых ты побывал(а), и задай возникшие вопросы\n 3. Заведи конспект, в котором будешь фиксировать информацию со встреч с наставником: общую информацию о компании, обратную связь по твоей работе и т.п.",
+      "instructions": [
+        "Попроси добавить себя во все ключевые каналы и чаты",
+        "Обсуди с наставником встречи, на которых ты побывал(а), и задай возникшие вопросы",
+        "Заведи конспект, в котором будешь фиксировать информацию со встреч с наставником: общую информацию о компании, обратную связь по твоей работе и т.п."
+      ],
+      "stage": "week-1",
+      "stageOrder": 1,
+      "stageLabel": "1 неделя",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Материалы для всех",
+        "row": 5
+      }
+    },
+    {
+      "id": "common-05",
+      "track": "common",
+      "title": "Запроси доступ в пространство своего кластера и/или команды и изучи его/их",
+      "originalText": "Запроси доступ в пространство своего кластера и/или команды и изучи его/их",
+      "description": "",
+      "instructions": [],
+      "stage": "week-1",
+      "stageOrder": 1,
+      "stageLabel": "1 неделя",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Материалы для всех",
+        "row": 6
+      }
+    },
+    {
+      "id": "common-06",
+      "track": "common",
+      "title": "Запроси у куратора инструмент для отслеживания прогресса стажера. Внеси в него цели, задачи и ожидания",
+      "originalText": "Запроси у куратора инструмент для отслеживания прогресса стажера. Внеси в него цели, задачи и ожидания",
+      "description": "",
+      "instructions": [],
+      "stage": "week-2",
+      "stageOrder": 2,
+      "stageLabel": "2 неделя",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Материалы для всех",
+        "row": 7
+      }
+    },
+    {
+      "id": "common-07",
+      "track": "common",
+      "title": "Изучи все необходимые документы и мануалы по работе в своей команде/вертикали/кластеру, которыми с тобой поделился бадди/руководитель",
+      "originalText": "Изучи все необходимые документы и мануалы по работе в своей команде/вертикали/кластеру, которыми с тобой поделился бадди/руководитель",
+      "description": "",
+      "instructions": [],
+      "stage": "week-2",
+      "stageOrder": 2,
+      "stageLabel": "2 неделя",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Материалы для всех",
+        "row": 8
+      }
+    },
+    {
+      "id": "common-08",
+      "track": "common",
+      "title": "Изучи основы защиты персональных данных и другие инструкции Авито",
+      "originalText": "Изучи основы защиты персональных данных и другие инструкции Авито",
+      "description": "1. Ознакомься с лендингом «Защита данных»\n 2. Ознакомься с памяткой по раскрытию информации\n 3. Ознакомься с политикой по работе с КИ и ее защите",
+      "instructions": [
+        "Ознакомься с лендингом «Защита данных»",
+        "Ознакомься с памяткой по раскрытию информации",
+        "Ознакомься с политикой по работе с КИ и ее защите"
+      ],
+      "stage": "month-1",
+      "stageOrder": 3,
+      "stageLabel": "1 месяц",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Материалы для всех",
+        "row": 9
+      }
+    },
+    {
+      "id": "common-09",
+      "track": "common",
+      "title": "Изучи памятку, как закрывать практику, писать учебные работы по Авито",
+      "originalText": "Изучи памятку, как закрывать практику, писать учебные работы по Авито",
+      "description": "",
+      "instructions": [],
+      "stage": "month-2",
+      "stageOrder": 4,
+      "stageLabel": "2 месяц",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Материалы для всех",
+        "row": 10
+      }
+    },
+    {
+      "id": "common-10",
+      "track": "common",
+      "title": "Подготовься к экваторной встрече",
+      "originalText": "Подготовься к экваторной встрече",
+      "description": "1. Сходи на мастер-классы для подготовки к экваторной встрече (приглашения будут в календаре)\n 2. Для подготовки презентации можно посмотреть запись мастер-класса «Как и где создавать красивые презентации»\n 3. Для подготовки речи выступления можно посмотреть онлайн-курс «Как оптимизировать коммуникацию, чтобы тебя все понимали», курс «Учимся выступать публично (Радислав Гандапас)»",
+      "instructions": [
+        "Сходи на мастер-классы для подготовки к экваторной встрече (приглашения будут в календаре)",
+        "Для подготовки презентации можно посмотреть запись мастер-класса «Как и где создавать красивые презентации»",
+        "Для подготовки речи выступления можно посмотреть онлайн-курс «Как оптимизировать коммуникацию, чтобы тебя все понимали», курс «Учимся выступать публично (Радислав Гандапас)»"
+      ],
+      "stage": "after-month-3",
+      "stageOrder": 6,
+      "stageLabel": "После 3-х месяцев",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Материалы для всех",
+        "row": 11
+      }
+    },
+    {
+      "id": "common-11",
+      "track": "common",
+      "title": "Экваторная встреча",
+      "originalText": "Экваторная встреча",
+      "description": "1. К выступлению на экваторе оформи презентацию по заданной структуре и подготовь речь\n 2. Согласуй презентацию с промежуточными результатами с куратором стажировки и бадди/руководителем. При необходимости внеси корректировки\n 3. При необходимости попроси куратора стажировки или своего бадди/руководителя провести с тобой репетицию выступления\n 4. Обязательно сходи на экваторную встречу и представь свои промежуточные результаты. Опционально можешь посетить экваторные встречи других стажёров\n 5. Прими участие во встрече с подведением итогов после экваторных встреч (приглашение будет в календаре)",
+      "instructions": [
+        "К выступлению на экваторе оформи презентацию по заданной структуре и подготовь речь",
+        "Согласуй презентацию с промежуточными результатами с куратором стажировки и бадди/руководителем. При необходимости внеси корректировки",
+        "При необходимости попроси куратора стажировки или своего бадди/руководителя провести с тобой репетицию выступления",
+        "Обязательно сходи на экваторную встречу и представь свои промежуточные результаты. Опционально можешь посетить экваторные встречи других стажёров",
+        "Прими участие во встрече с подведением итогов после экваторных встреч (приглашение будет в календаре)"
+      ],
+      "stage": "after-month-3",
+      "stageOrder": 6,
+      "stageLabel": "После 3-х месяцев",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Материалы для всех",
+        "row": 12
+      }
+    },
+    {
+      "id": "common-12",
+      "track": "common",
+      "title": "На 1:1 обсуди со стажёром промежуточные итоги стажировки, дай обратную связь по его прогрессу и результатам относительно целей",
+      "originalText": "На 1:1 обсуди со стажёром промежуточные итоги стажировки, дай обратную связь по его прогрессу и результатам относительно целей",
+      "description": "",
+      "instructions": [],
+      "stage": "after-month-3",
+      "stageOrder": 6,
+      "stageLabel": "После 3-х месяцев",
+      "actor": "mentor",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Материалы для всех",
+        "row": 13
+      }
+    },
+    {
+      "id": "common-13",
+      "track": "common",
+      "title": "Экваторная встреча",
+      "originalText": "Экваторная встреча",
+      "description": "1. Сходи на бриф для бадди и руководителей перед экваторной встречей (приглашение будет в календаре)\n 2. Проверь презентацию стажёра: в ней должны быть корректно отражены выполненные задачи и цели на стажировку. При необходимости внеси правки (презентацию стажёр готовит самостоятельно, а с оформлением ему помогает куратор стажировки)\n 3. Если стажёр попросит провести репетицию выступления по презентации, поддержи его и назначь встречу на 15 минут\n 4. Подготовь напутственное слово для своего стажёра на экваторную встречу. Это не обратная связь, а возможность поблагодарить стажёра за проделанную работу и поделиться пожеланиями на оставшийся период стажировки\n 5. Посети экваторную встречу своего стажёра (приглашение будет в календаре)",
+      "instructions": [
+        "Сходи на бриф для бадди и руководителей перед экваторной встречей (приглашение будет в календаре)",
+        "Проверь презентацию стажёра: в ней должны быть корректно отражены выполненные задачи и цели на стажировку. При необходимости внеси правки (презентацию стажёр готовит самостоятельно, а с оформлением ему помогает куратор стажировки)",
+        "Если стажёр попросит провести репетицию выступления по презентации, поддержи его и назначь встречу на 15 минут",
+        "Подготовь напутственное слово для своего стажёра на экваторную встречу. Это не обратная связь, а возможность поблагодарить стажёра за проделанную работу и поделиться пожеланиями на оставшийся период стажировки",
+        "Посети экваторную встречу своего стажёра (приглашение будет в календаре)"
+      ],
+      "stage": "after-month-3",
+      "stageOrder": 6,
+      "stageLabel": "После 3-х месяцев",
+      "actor": "mentor",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Материалы для всех",
+        "row": 14
+      }
+    },
+    {
+      "id": "common-14",
+      "track": "common",
+      "title": "Выпускной",
+      "originalText": "Выпускной",
+      "description": "Приходи на выпускной! Все детали будут в приглашении в календаре. С вопросами можешь обратиться к своему куратору стажировки",
+      "instructions": [
+        "Приходи на выпускной! Все детали будут в приглашении в календаре. С вопросами можешь обратиться к своему куратору стажировки"
+      ],
+      "stage": "after-month-3",
+      "stageOrder": 6,
+      "stageLabel": "После 3-х месяцев",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Материалы для всех",
+        "row": 15
+      }
+    },
+    {
+      "id": "common-15",
+      "track": "common",
+      "title": "Пройди опрос о том, как прошла стажировка",
+      "originalText": "Пройди опрос о том, как прошла стажировка",
+      "description": "",
+      "instructions": [],
+      "stage": "after-month-3",
+      "stageOrder": 6,
+      "stageLabel": "После 3-х месяцев",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Материалы для всех",
+        "row": 16
+      }
+    },
+    {
+      "id": "common-16",
+      "track": "common",
+      "title": "Пройди опрос о том, как прошла стажировка",
+      "originalText": "Пройди опрос о том, как прошла стажировка",
+      "description": "",
+      "instructions": [],
+      "stage": "after-month-3",
+      "stageOrder": 6,
+      "stageLabel": "После 3-х месяцев",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Материалы для всех",
+        "row": 17
+      }
+    },
+    {
+      "id": "backend-01",
+      "track": "backend",
+      "title": "Курс про Agile инструменты:",
+      "originalText": "Курс про Agile инструменты:\n 1. Изучи курс Agile в Авито\n 2. Изучи Agile и Scrum в работе над проектами и продуктами. Особенности работы твоей команды предстоит выучить на практике",
+      "description": "",
+      "instructions": [
+        "Изучи курс Agile в Авито",
+        "Изучи Agile и Scrum в работе над проектами и продуктами. Особенности работы твоей команды предстоит выучить на практике"
+      ],
+      "stage": "month-1",
+      "stageOrder": 3,
+      "stageLabel": "1 месяц",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 2
+      }
+    },
+    {
+      "id": "backend-02",
+      "track": "backend",
+      "title": "Изучи микросервисную архитектура в Авито",
+      "originalText": "Изучи микросервисную архитектура в Авито\n 1. Пройди курс «Микросервисная архитектура в Авито»",
+      "description": "",
+      "instructions": [
+        "Пройди курс «Микросервисная архитектура в Авито»"
+      ],
+      "stage": "month-1",
+      "stageOrder": 3,
+      "stageLabel": "1 месяц",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 3
+      }
+    },
+    {
+      "id": "backend-03",
+      "track": "backend",
+      "title": "Сниффер запросов: установи на компьютер cниффер запросов (bruno или charles), LENS для работы с kubernetes",
+      "originalText": "Сниффер запросов: установи на компьютер cниффер запросов (bruno или charles), LENS для работы с kubernetes",
+      "description": "",
+      "instructions": [
+        "Сниффер запросов: установи на компьютер cниффер запросов (bruno или charles), LENS для работы с kubernetes"
+      ],
+      "stage": "month-1",
+      "stageOrder": 3,
+      "stageLabel": "1 месяц",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 4
+      }
+    },
+    {
+      "id": "backend-04",
+      "track": "backend",
+      "title": "Изучи информацию про SPT",
+      "originalText": "Изучи информацию про SPT",
+      "description": "",
+      "instructions": [
+        "Изучи информацию про SPT"
+      ],
+      "stage": "month-1",
+      "stageOrder": 3,
+      "stageLabel": "1 месяц",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 5
+      }
+    },
+    {
+      "id": "backend-05",
+      "track": "backend",
+      "title": "Изучи Zero Bug Policy (ZBP)",
+      "originalText": "Изучи Zero Bug Policy (ZBP)",
+      "description": "",
+      "instructions": [
+        "Изучи Zero Bug Policy (ZBP)"
+      ],
+      "stage": "month-1",
+      "stageOrder": 3,
+      "stageLabel": "1 месяц",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 6
+      }
+    },
+    {
+      "id": "backend-06",
+      "track": "backend",
+      "title": "Расскажи о Grafana",
+      "originalText": "Расскажи о Grafana",
+      "description": "",
+      "instructions": [
+        "Расскажи о Grafana"
+      ],
+      "stage": "month-1",
+      "stageOrder": 3,
+      "stageLabel": "1 месяц",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 7
+      }
+    },
+    {
+      "id": "backend-07",
+      "track": "backend",
+      "title": "Изучи информации про API",
+      "originalText": "Изучи информации про API",
+      "description": "",
+      "instructions": [
+        "Изучи информации про API"
+      ],
+      "stage": "month-1",
+      "stageOrder": 3,
+      "stageLabel": "1 месяц",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 8
+      }
+    },
+    {
+      "id": "backend-08",
+      "track": "backend",
+      "title": "Изучи Effective Go",
+      "originalText": "Изучи Effective Go",
+      "description": "",
+      "instructions": [
+        "Изучи Effective Go"
+      ],
+      "stage": "month-1",
+      "stageOrder": 3,
+      "stageLabel": "1 месяц",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 9
+      }
+    },
+    {
+      "id": "backend-09",
+      "track": "backend",
+      "title": "Принципы разработки Авито",
+      "originalText": "Принципы разработки Авито\n Изучи принципы разработки Авито",
+      "description": "",
+      "instructions": [
+        "Принципы разработки Авито\n Изучи принципы разработки Авито"
+      ],
+      "stage": "week-1",
+      "stageOrder": 1,
+      "stageLabel": "1 неделя",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 10
+      }
+    },
+    {
+      "id": "backend-10",
+      "track": "backend",
+      "title": "Изучи Авито в цифрах",
+      "originalText": "Изучи Авито в цифрах",
+      "description": "",
+      "instructions": [
+        "Изучи Авито в цифрах"
+      ],
+      "stage": "week-1",
+      "stageOrder": 1,
+      "stageLabel": "1 неделя",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 11
+      }
+    },
+    {
+      "id": "backend-11",
+      "track": "backend",
+      "title": "Настрой avito-cli",
+      "originalText": "Настрой avito-cli",
+      "description": "",
+      "instructions": [
+        "Настрой avito-cli"
+      ],
+      "stage": "week-1",
+      "stageOrder": 1,
+      "stageLabel": "1 неделя",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 12
+      }
+    },
+    {
+      "id": "backend-12",
+      "track": "backend",
+      "title": "Добавь ключи в stash",
+      "originalText": "Добавь ключи в stash",
+      "description": "",
+      "instructions": [
+        "Добавь ключи в stash"
+      ],
+      "stage": "week-1",
+      "stageOrder": 1,
+      "stageLabel": "1 неделя",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 13
+      }
+    },
+    {
+      "id": "backend-13",
+      "track": "backend",
+      "title": "Попроси руководителя или наставника добавить тебя в канал Tech-dep",
+      "originalText": "Попроси руководителя или наставника добавить тебя в канал Tech-dep",
+      "description": "",
+      "instructions": [
+        "Попроси руководителя или наставника добавить тебя в канал Tech-dep"
+      ],
+      "stage": "week-1",
+      "stageOrder": 1,
+      "stageLabel": "1 неделя",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 14
+      }
+    },
+    {
+      "id": "backend-14",
+      "track": "backend",
+      "title": "Расскажи о Sentry",
+      "originalText": "Расскажи о Sentry",
+      "description": "",
+      "instructions": [
+        "Расскажи о Sentry"
+      ],
+      "stage": "week-1",
+      "stageOrder": 1,
+      "stageLabel": "1 неделя",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 15
+      }
+    },
+    {
+      "id": "backend-15",
+      "track": "backend",
+      "title": "Прорешай задачи на учебной платформе, чтобы познакомиться с инструментами Авито",
+      "originalText": "Прорешай задачи на учебной платформе, чтобы познакомиться с инструментами Авито",
+      "description": "",
+      "instructions": [
+        "Прорешай задачи на учебной платформе, чтобы познакомиться с инструментами Авито"
+      ],
+      "stage": "week-1",
+      "stageOrder": 1,
+      "stageLabel": "1 неделя",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 16
+      }
+    },
+    {
+      "id": "backend-16",
+      "track": "backend",
+      "title": "Изучи Демо Tech Platform",
+      "originalText": "Изучи Демо Tech Platform",
+      "description": "",
+      "instructions": [
+        "Изучи Демо Tech Platform"
+      ],
+      "stage": "month-2",
+      "stageOrder": 4,
+      "stageLabel": "2 месяц",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 17
+      }
+    },
+    {
+      "id": "backend-17",
+      "track": "backend",
+      "title": "Изучи документацию по нагрузочному тестированию",
+      "originalText": "Изучи документацию по нагрузочному тестированию",
+      "description": "",
+      "instructions": [
+        "Изучи документацию по нагрузочному тестированию"
+      ],
+      "stage": "month-2",
+      "stageOrder": 4,
+      "stageLabel": "2 месяц",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 18
+      }
+    },
+    {
+      "id": "backend-18",
+      "track": "backend",
+      "title": "Изучи инфомодель",
+      "originalText": "Изучи инфомодель",
+      "description": "",
+      "instructions": [
+        "Изучи инфомодель"
+      ],
+      "stage": "month-2",
+      "stageOrder": 4,
+      "stageLabel": "2 месяц",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 19
+      }
+    },
+    {
+      "id": "backend-19",
+      "track": "backend",
+      "title": "Данные и хранилища Авито",
+      "originalText": "Данные и хранилища Авито\n 1. Изучи документацию по работе с базами данных в Авито",
+      "description": "",
+      "instructions": [
+        "Изучи документацию по работе с базами данных в Авито"
+      ],
+      "stage": "week-2",
+      "stageOrder": 2,
+      "stageLabel": "2 неделя",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 20
+      }
+    },
+    {
+      "id": "backend-20",
+      "track": "backend",
+      "title": "Расскажи о Observer",
+      "originalText": "Расскажи о Observer",
+      "description": "",
+      "instructions": [
+        "Расскажи о Observer"
+      ],
+      "stage": "week-2",
+      "stageOrder": 2,
+      "stageLabel": "2 неделя",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 21
+      }
+    },
+    {
+      "id": "backend-21",
+      "track": "backend",
+      "title": "Изучи PaaS: дашборд, а тут мы делимся новостями",
+      "originalText": "Изучи PaaS: дашборд, а тут мы делимся новостями",
+      "description": "",
+      "instructions": [
+        "Изучи PaaS: дашборд, а тут мы делимся новостями"
+      ],
+      "stage": "week-2",
+      "stageOrder": 2,
+      "stageLabel": "2 неделя",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 22
+      }
+    },
+    {
+      "id": "backend-22",
+      "track": "backend",
+      "title": "Изучи документацию по Go",
+      "originalText": "Изучи документацию по Go",
+      "description": "",
+      "instructions": [
+        "Изучи документацию по Go"
+      ],
+      "stage": "week-2",
+      "stageOrder": 2,
+      "stageLabel": "2 неделя",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 23
+      }
+    },
+    {
+      "id": "backend-23",
+      "track": "backend",
+      "title": "Изучи профили инженеров",
+      "originalText": "Изучи профили инженеров",
+      "description": "",
+      "instructions": [
+        "Изучи профили инженеров"
+      ],
+      "stage": "week-2",
+      "stageOrder": 2,
+      "stageLabel": "2 неделя",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 24
+      }
+    },
+    {
+      "id": "backend-24",
+      "track": "backend",
+      "title": "Расскажи о Redash",
+      "originalText": "Расскажи о Redash",
+      "description": "",
+      "instructions": [
+        "Расскажи о Redash"
+      ],
+      "stage": "month-3",
+      "stageOrder": 5,
+      "stageLabel": "3 месяц",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 25
+      }
+    },
+    {
+      "id": "backend-25",
+      "track": "backend",
+      "title": "Пройди курс \"Паттерны и практики написания кода\"",
+      "originalText": "Пройди курс \"Паттерны и практики написания кода\"",
+      "description": "",
+      "instructions": [
+        "Пройди курс \"Паттерны и практики написания кода\""
+      ],
+      "stage": "month-3",
+      "stageOrder": 5,
+      "stageLabel": "3 месяц",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 26
+      }
+    },
+    {
+      "id": "backend-26",
+      "track": "backend",
+      "title": "Найди подходящее сообщество для себя в Центре сообществ в Авито",
+      "originalText": "Найди подходящее сообщество для себя в Центре сообществ в Авито",
+      "description": "",
+      "instructions": [
+        "Найди подходящее сообщество для себя в Центре сообществ в Авито"
+      ],
+      "stage": "month-3",
+      "stageOrder": 5,
+      "stageLabel": "3 месяц",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 27
+      }
+    },
+    {
+      "id": "backend-27",
+      "track": "backend",
+      "title": "Познакомься с процессом Шаталити - помогает планировать свои задачи и делать так чтобы плановые работы на разных сервисах не совпадали по времени",
+      "originalText": "Познакомься с процессом Шаталити - помогает планировать свои задачи и делать так чтобы плановые работы на разных сервисах не совпадали по времени",
+      "description": "",
+      "instructions": [
+        "Познакомься с процессом Шаталити - помогает планировать свои задачи и делать так чтобы плановые работы на разных сервисах не совпадали по времени"
+      ],
+      "stage": "month-3",
+      "stageOrder": 5,
+      "stageLabel": "3 месяц",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 28
+      }
+    },
+    {
+      "id": "backend-28",
+      "track": "backend",
+      "title": "Изучи книгу Язык программирования Go: Донован, Керниган",
+      "originalText": "Изучи книгу Язык программирования Go: Донован, Керниган",
+      "description": "",
+      "instructions": [
+        "Изучи книгу Язык программирования Go: Донован, Керниган"
+      ],
+      "stage": "after-month-3",
+      "stageOrder": 6,
+      "stageLabel": "после 3-х месяцев",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 29
+      }
+    },
+    {
+      "id": "backend-29",
+      "track": "backend",
+      "title": "Изучи книгу Ричардсон Крис. Микросервисы. Паттерны разработки и рефакторинга",
+      "originalText": "Изучи книгу Ричардсон Крис. Микросервисы. Паттерны разработки и рефакторинга",
+      "description": "",
+      "instructions": [
+        "Изучи книгу Ричардсон Крис. Микросервисы. Паттерны разработки и рефакторинга"
+      ],
+      "stage": "after-month-3",
+      "stageOrder": 6,
+      "stageLabel": "после 3-х месяцев",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 30
+      }
+    },
+    {
+      "id": "backend-30",
+      "track": "backend",
+      "title": "Изучи книгу Бхаргава Адитья. Грокаем алгоритмы. Иллюстрированное пособие для программистов и любопытствующих",
+      "originalText": "Изучи книгу Бхаргава Адитья. Грокаем алгоритмы. Иллюстрированное пособие для программистов и любопытствующих",
+      "description": "",
+      "instructions": [
+        "Изучи книгу Бхаргава Адитья. Грокаем алгоритмы. Иллюстрированное пособие для программистов и любопытствующих"
+      ],
+      "stage": "after-month-3",
+      "stageOrder": 6,
+      "stageLabel": "после 3-х месяцев",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 31
+      }
+    },
+    {
+      "id": "backend-31",
+      "track": "backend",
+      "title": "Изучи книгу Клеппман Мартин Высоконагруженные приложения. Программирование, масштабирование, поддержка",
+      "originalText": "Изучи книгу Клеппман Мартин Высоконагруженные приложения. Программирование, масштабирование, поддержка",
+      "description": "",
+      "instructions": [
+        "Изучи книгу Клеппман Мартин Высоконагруженные приложения. Программирование, масштабирование, поддержка"
+      ],
+      "stage": "after-month-3",
+      "stageOrder": 6,
+      "stageLabel": "после 3-х месяцев",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 32
+      }
+    },
+    {
+      "id": "backend-32",
+      "track": "backend",
+      "title": "Рекомендуемые материалы от Димы Ходакова, директора центра разработки ABS",
+      "originalText": "Рекомендуемые материалы от Димы Ходакова, директора центра разработки ABS\n \n 1. Уэзеролл Дэвид, Таненбаум Эндрю «Компьютерные системы и сети» (2 книги)\n 2. Кормен Томас Х., Лейзерсон Чарльз И «Алгоритмы построение и анализ»\n 3. Макконнелл Стив «Совершенный код»\n 4. Роберт Мартин «Чистый код»\n 5. Томас Дэвид, Хант Эндрю «Программист-прагматик»",
+      "description": "",
+      "instructions": [
+        "Уэзеролл Дэвид, Таненбаум Эндрю «Компьютерные системы и сети» (2 книги)",
+        "Кормен Томас Х., Лейзерсон Чарльз И «Алгоритмы построение и анализ»",
+        "Макконнелл Стив «Совершенный код»",
+        "Роберт Мартин «Чистый код»",
+        "Томас Дэвид, Хант Эндрю «Программист-прагматик»"
+      ],
+      "stage": "after-month-3",
+      "stageOrder": 6,
+      "stageLabel": "после 3-х месяцев",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "self_confirmed",
+      "sourceRef": {
+        "sheet": "Чек-лист Backend",
+        "row": 33
+      }
+    },
+    {
+      "id": "analytics-01",
+      "track": "analytics",
+      "title": "Профильный модуль: стек данных, единый источник правды (SSOT), Tableau и метрики продукта",
+      "originalText": "CHK-25: Профильный модуль (Аналитика и DS): Стек данных, единый источник правды (SSOT), Tableau и метрики продукта",
+      "description": "SQL, Python, Tableau, валидация данных и расчёт продуктовых метрик; ссылка на проверенный дашборд или ноутбук как доказательство.",
+      "instructions": [],
+      "stage": "month-1",
+      "stageOrder": 3,
+      "stageLabel": "2–5 неделя",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "curator_confirmed",
+      "sourceRef": {
+        "sheet": "gemini-report",
+        "row": "CHK-25"
+      }
+    },
+    {
+      "id": "analytics-02",
+      "track": "analytics",
+      "title": "Колесо компетенций аналитика: самооценка по 8 осям и план развития",
+      "originalText": "Gemini report: competency assessment (Semantic Mastery Store) + практика «Колесо компетенций» из задания",
+      "description": "Выбрать направление аналитики, оценить себя по 8 осям (0–10), выбрать 1–2 зоны развития и составить план действий со сроками.",
+      "instructions": [],
+      "stage": "month-1",
+      "stageOrder": 3,
+      "stageLabel": "2–5 неделя",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "evidence_required",
+      "sourceRef": {
+        "sheet": "gemini-report",
+        "row": "competency_assessment"
+      }
+    },
+    {
+      "id": "marketing-01",
+      "track": "marketing",
+      "title": "Профильный модуль: воронки привлечения, CRM-коммуникации, Tone of Voice и аналитика кампаний",
+      "originalText": "CHK-27: Профильный модуль (Маркетинг и коммуникации): Воронки привлечения, CRM-коммуникации, тон голоса бренда (Tone of Voice) и аналитика кампаний",
+      "description": "CAC, LTV, Retention, CTR; утверждённый бриф кампании и отчёт по тестовому запуску как доказательство.",
+      "instructions": [],
+      "stage": "month-1",
+      "stageOrder": 3,
+      "stageLabel": "2–5 неделя",
+      "actor": "intern",
+      "prerequisites": [],
+      "objective": "",
+      "evidence": "",
+      "completionPolicy": "curator_confirmed",
+      "sourceRef": {
+        "sheet": "gemini-report",
+        "row": "CHK-27"
+      }
+    }
+  ]
+}

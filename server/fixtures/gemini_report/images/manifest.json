@@ -1,0 +1,29 @@
+{
+  "sourceDocx": "source.docx",
+  "sourceDocxSha256": "1e264a705c98defe1e653832e5f978d6f649381d7f1f0d0effa12a4c6fae7534",
+  "extractedText": "extracted_text.txt",
+  "extractedTextSha256": "576544962ea305183bb858036d808d5cd1a31d837e46fdf54f200684ddebd775",
+  "images": [
+    {
+      "file": "image6.png",
+      "sha256": "fd0a29ddcda705800d9b48cdb1ad79fe5c780444db6125148afdaa87b66c510d",
+      "bytes": 545757,
+      "altText": "Архитектурная диаграмма AI-Buddy: Guardrail → Orchestrator/Planner → Hybrid RAG (Playbook, Checklist, C# OOP) → Typed Tool Executor с HITL Preview & Confirm Gate → Mock Sandbox (Access, Jira, Messenger) и Audit Log.",
+      "relationship": "rId9"
+    },
+    {
+      "file": "image7.png",
+      "sha256": "b7f884a005967b19ce6d74f8bde816d9bdc84d89be47de86f84b2db65abe1885",
+      "bytes": 347819,
+      "altText": "Инфографика покрытия: 32 eval-кейса по 9 категориям (функциональные 12, эпистемические 7, безопасность 7, транзакционные 6) и индекс зрелости стека (LangGraph+MCP 95/92, PostgreSQL+pgvector 94/98, Outbox FSM 98/96, DeepEval 96/94, OTel+Phoenix 97/95).",
+      "relationship": "rId12"
+    },
+    {
+      "file": "image9.png",
+      "sha256": "885a36a67a3d0e992922d958001cb128381daa2cd8959f1744d548d6aa8c9b77",
+      "bytes": 413626,
+      "altText": "Инфографика структуры адаптации: 200+ команд, 200–250 релизов/день, 20 ч/нед, коридор OKR 0.6–0.7; индекс автономности E1→E2; распределение 30 пунктов чек-листа по этапам и доля HITL.",
+      "relationship": "rId6"
+    }
+  ]
+}
