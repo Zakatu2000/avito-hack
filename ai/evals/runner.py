@@ -17,11 +17,16 @@ import sys
 from pathlib import Path
 from typing import Any
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 from agent.policy import BuddyAgent
 from context.models import AiMode, Workspace
 from context.tools import WorkspaceTools
 from evals.server_check import check_decision
 from providers.base import LLMResponse, ProviderError, ProviderUnavailableError
+from ai.buddy_intents import classify as classify_buddy_intent
 
 ALLOWED_TOOLS = {"current_task", "instruction", "effective_access", "current_request"}
 
@@ -162,6 +167,27 @@ def evaluate(entry: dict, live_agent: BuddyAgent | None) -> list[str]:
     return violations
 
 
+def evaluate_buddy(entry: dict) -> list[str]:
+    """Evaluate the onboarding router's closed intent set without a provider."""
+    violations: list[str] = []
+    allowed_tracks = {"backend", "analytics", "marketing"}
+    if entry.get("track") not in allowed_tracks:
+        violations.append(f"unknown synthetic track {entry.get('track')!r}")
+    decision = classify_buddy_intent(entry["message"])
+    expected = entry["expect"]["intent"]
+    if decision not in {
+        "next_step", "progress", "explain", "learn", "troubleshoot", "access",
+        "prepare", "feedback", "mentor", "curator_reply", "competency",
+        "off_topic", "unsafe",
+    }:
+        violations.append(f"intent outside closed set: {decision!r}")
+    if decision != expected:
+        violations.append(f"intent {decision!r} != expected {expected!r}")
+    if entry.get("repeat") and classify_buddy_intent(entry["message"]) != decision:
+        violations.append("repeated classification differs")
+    return violations
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="AI-buddy offline evals (A5)")
     parser.add_argument("--dataset", default=str(DEFAULT_DATASET))
@@ -197,6 +223,17 @@ def main(argv: list[str] | None = None) -> int:
         else:
             passed += 1
             print(f"PASS {entry['id']} ({entry['sdd']}, {entry['state']})")
+
+    for entry in dataset.get("buddyCases", []):
+        violations = evaluate_buddy(entry)
+        if violations:
+            failed += 1
+            print(f"FAIL {entry['id']} ({entry['track']}, {entry['category']})")
+            for violation in violations:
+                print(f"     - {violation}")
+        else:
+            passed += 1
+            print(f"PASS {entry['id']} ({entry['track']}, {entry['category']})")
 
     total = passed + failed
     print(f"\n{passed}/{total} dialogs passed (mode={'live' if args.live else 'demo'})")

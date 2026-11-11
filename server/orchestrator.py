@@ -10,91 +10,15 @@ Design (docs/sdd/agent.md invariants preserved):
 """
 import json
 import re
-from datetime import date
 
+from ai.buddy_intents import (
+    INTENTS,
+    INJECTION_RE as _INJECTION,
+    _CURATOR_MARKERS,
+    _UNKNOWN_PATTERNS,
+    classify,
+)
 from server import actions, knowledge, onboarding
-
-INTENTS = (
-    "next_step", "progress", "explain", "learn", "troubleshoot", "access",
-    "prepare", "feedback", "mentor", "curator_reply", "competency",
-    "off_topic", "unsafe",
-)
-
-_INJECTION = re.compile(
-    r"(игнорируй|забудь|отмени)\s+(все\s+)?(предыдущ|свои|эти)\s*(инструкц|правил|команд)"
-    r"|system\s*override|system\s*prompt|системн\w*\s+промпт"
-    r"|ты\s+теперь\s+(админ|администратор|root)"
-    r"|выдай\s+(свой\s+)?системн\w*\s+промпт"
-    r"|отметь\s+(мне\s+)?(все|всё)\s+.{0,20}(выполнен|закрыт|сделан)",
-    re.IGNORECASE)
-_SECRET = re.compile(
-    r"ghp_[0-9a-zA-Z]{10,}|xox[baprs]-[0-9a-zA-Z-]{10,}"
-    r"|(password|passwd|token|secret|api[_-]?key)\s*[:=]\s*\S+",
-    re.IGNORECASE)
-
-_ACCESS_WORDS = ("доступ", "доступа", "доступу", "права", "прав", "доступ к",
-                 "403", "forbidden", "не открыва", "не могу открыть",
-                 "нет доступа", "заявк", "предостав")
-_PROGRESS_WORDS = ("прогресс", "сколько закрыл", "сколько выполнил", "где я",
-                   "статус", "процент", "закрыл", "выполнил", "сколько пунктов")
-_NEXT_WORDS = ("что дальше", "дальше по", "следующий шаг", "следующ", "что делать",
-               "с чего начать", "какой следующий", "куда двигаться", "что сейчас",
-               "план на", "по чек-листу")
-_LEARN_WORDS = ("научи", "расскажи про", "объясни тему", "урок", "модуль",
-                "квиз", "проверь меня", "вопросы для самопроверки", "изучить",
-                "учиться", "обучение", "материал")
-_PREPARE_WORDS = ("1:1", "один на один", "экватор", "встреч", "подготовить",
-                  "подготовка", "презентац", "выпускн", "опрос", "собеседован")
-_FEEDBACK_WORDS = ("обратная связь", "фидбек", "спросить у наставника",
-                   "как спросить", "сформулируй вопрос", "помоги спросить",
-                   "отзыв", "ревью моей")
-_MENTOR_WORDS = ("наставник", "куратор", "бадди", "не справляюсь", "слишком сложно",
-                 "помогите человек", "живой человек", "позови", "эскалац",
-                 "конфликт", "обидел", "плохо себя", "выгор")
-_TROUBLE_WORDS = ("ошибка", "не работает", "не собирается", "падает", "не запускается",
-                  "красный", "сломал", "блокер", "застрял", "не получается",
-                  "failed", "error", "почему не")
-_CURATOR_MARKERS = ("ответ куратора", "куратор ответил", "куратор написал",
-                    "наставник ответил", "разбери ответ", "что он имел в виду",
-                    "что она имела в виду", "объясни ответ", "прислал текст")
-_COMPETENCY_WORDS = ("компетенц", "колесо", "самооценк", "оценить себя",
-                     "зоны развития", "план развития", "оси")
-_UNKNOWN_PATTERNS = (
-    re.compile(r"sla|сла\b|внутренн\w* (api|url|endpoint|адрес|ip)", re.IGNORECASE),
-    re.compile(r"(бонус|преми\w*|зарплат\w*|оклад)\s+(в|у|сколько|какой|какого)", re.IGNORECASE),
-    re.compile(r"соседск\w* соглашени", re.IGNORECASE),
-)
-
-
-def classify(text):
-    lowered = " ".join(text.casefold().split())
-    if _INJECTION.search(lowered):
-        return "unsafe"
-    if _SECRET.search(text):
-        return "unsafe"
-    if any(m in lowered for m in _CURATOR_MARKERS):
-        return "curator_reply"
-    if any(w in lowered for w in _COMPETENCY_WORDS):
-        return "competency"
-    if any(w in lowered for w in _MENTOR_WORDS):
-        return "mentor"
-    if any(w in lowered for w in _ACCESS_WORDS):
-        return "access"
-    if any(w in lowered for w in _TROUBLE_WORDS):
-        return "troubleshoot"
-    if any(w in lowered for w in _PROGRESS_WORDS):
-        return "progress"
-    if any(w in lowered for w in _PREPARE_WORDS):
-        return "prepare"
-    if any(w in lowered for w in _FEEDBACK_WORDS):
-        return "feedback"
-    if any(w in lowered for w in _LEARN_WORDS):
-        return "learn"
-    if any(w in lowered for w in _NEXT_WORDS):
-        return "next_step"
-    if any(p.search(lowered) for p in _UNKNOWN_PATTERNS):
-        return "explain"
-    return "explain"
 
 
 def _checklist_ref_payload(decorated):
