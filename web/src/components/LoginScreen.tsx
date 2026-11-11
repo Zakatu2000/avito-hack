@@ -32,7 +32,7 @@ export function LoginScreen({ client, onLogin, expired }: LoginScreenProps) {
   }
 
   const sessions = client instanceof HttpApiClient
-    ? ['intern-demo', 'intern-ready', 'intern-new', 'operator-demo'].map((login) => ({
+    ? ['intern-demo', 'intern-ready', 'intern-new', 'intern-analytics', 'intern-marketing', 'operator-demo'].map((login) => ({
         user: { login, displayName: login, role: login === 'operator-demo' ? 'operator' : 'trainee' },
       })) : exampleSessions;
 

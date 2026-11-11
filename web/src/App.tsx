@@ -35,5 +35,6 @@ export function App({ client: clientProp }: AppProps) {
   if (session === null) {
     return <LoginScreen client={client} onLogin={handleLogin} expired={expired} />;
   }
-  return <WorkspaceScreen client={client} session={session} onExpired={handleExpired} onLogout={handleLogout} />;
+  return <WorkspaceScreen key={session.user.login} client={client} session={session} onSessionChange={handleLogin}
+    onExpired={handleExpired} onLogout={handleLogout} />;
 }

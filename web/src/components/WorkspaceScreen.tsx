@@ -1,16 +1,25 @@
+import { useState } from 'react';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { WorkspaceBody } from './WorkspaceBody';
 import type { ApiClient, SessionInfo } from '../api/types';
+import { HttpApiClient } from '../api/client';
+import { createBuddyClient } from '../api/buddy';
+import { BuddyPanel } from './BuddyPanel';
+import { ProfileSwitcher } from './ProfileSwitcher';
 
 interface WorkspaceScreenProps {
   client: ApiClient;
   session: SessionInfo;
+  onSessionChange: (session: SessionInfo) => void;
   onExpired: () => void;
   onLogout: () => void;
 }
 
-export function WorkspaceScreen({ client, session, onExpired, onLogout }: WorkspaceScreenProps) {
+export function WorkspaceScreen({ client, session, onSessionChange, onExpired, onLogout }: WorkspaceScreenProps) {
   const { state, refreshing, refresh } = useWorkspace(client, onExpired);
+  const [activeTab, setActiveTab] = useState<'task' | 'onboarding'>('onboarding');
+  const [buddyClient] = useState(createBuddyClient);
+  const showBuddy = client instanceof HttpApiClient && session.user.role === 'trainee';
 
   async function signOut() {
     try {
@@ -30,6 +39,8 @@ export function WorkspaceScreen({ client, session, onExpired, onLogout }: Worksp
         <span className={`aimode aimode-${aiMode}`} data-testid="aimode-badge">
           Режим AI: {aiMode === 'real' ? 'реальный' : 'демо'}
         </span>
+        {showBuddy && <span className="mock-badge" data-testid="mock-integrations">Интеграции: mock</span>}
+        {showBuddy && <ProfileSwitcher client={client} currentLogin={session.user.login} onChanged={onSessionChange} />}
         <span className="topbar-user muted">{session.user.displayName}</span>
         <button className="btn btn-ghost" onClick={() => void signOut()}>
           Выйти
@@ -67,12 +78,17 @@ export function WorkspaceScreen({ client, session, onExpired, onLogout }: Worksp
         )}
 
         {workspace !== null && (
-          <WorkspaceBody
-            workspace={workspace}
-            client={client}
-            onRefresh={() => void refresh()}
-            refreshing={refreshing}
-          />
+          <>
+            {showBuddy && <nav className="workspace-tabs" aria-label="Разделы рабочего пространства">
+              <button className={`tab-btn ${activeTab === 'task' ? 'tab-active' : ''}`} aria-pressed={activeTab === 'task'}
+                onClick={() => setActiveTab('task')}>Задача</button>
+              <button className={`tab-btn ${activeTab === 'onboarding' ? 'tab-active' : ''}`} aria-pressed={activeTab === 'onboarding'}
+                onClick={() => setActiveTab('onboarding')}>Онбординг</button>
+            </nav>}
+            {showBuddy && activeTab === 'onboarding'
+              ? <BuddyPanel client={buddyClient} onExpired={onExpired} />
+              : <WorkspaceBody workspace={workspace} client={client} onRefresh={() => void refresh()} refreshing={refreshing} />}
+          </>
         )}
       </main>
     </div>
