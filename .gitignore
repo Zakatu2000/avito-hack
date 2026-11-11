@@ -11,7 +11,8 @@ venv/
 .coverage.*
 coverage.xml
 htmlcov/
-reports/
+reports/*
+!reports/checklist_coverage.json
 
 # OS
 .DS_Store

@@ -1,0 +1,352 @@
+{
+  "source": "Чек-лист стажера.xlsx",
+  "capturedAt": "2026-11-11T13:49:47+00:00",
+  "totalSourceRows": 48,
+  "coveredRows": 48,
+  "coveragePct": 100.0,
+  "missing": [],
+  "catalogItems": 51,
+  "extraTrackItems": [
+    "analytics-01",
+    "analytics-02",
+    "marketing-01"
+  ],
+  "rows": [
+    {
+      "sheet": "Материалы для всех",
+      "row": 2,
+      "catalogId": "common-01",
+      "title": "Организационные моменты",
+      "covered": true
+    },
+    {
+      "sheet": "Материалы для всех",
+      "row": 3,
+      "catalogId": "common-02",
+      "title": "Запроси у куратора стажировки методичку наставника",
+      "covered": true
+    },
+    {
+      "sheet": "Материалы для всех",
+      "row": 4,
+      "catalogId": "common-03",
+      "title": "Познакомься с командой, с которой будешь работать",
+      "covered": true
+    },
+    {
+      "sheet": "Материалы для всех",
+      "row": 5,
+      "catalogId": "common-04",
+      "title": "Работа с наставником",
+      "covered": true
+    },
+    {
+      "sheet": "Материалы для всех",
+      "row": 6,
+      "catalogId": "common-05",
+      "title": "Запроси доступ в пространство своего кластера и/или команды и изучи его/их",
+      "covered": true
+    },
+    {
+      "sheet": "Материалы для всех",
+      "row": 7,
+      "catalogId": "common-06",
+      "title": "Запроси у куратора инструмент для отслеживания прогресса стажера. Внеси в него цели, задачи и ожидания",
+      "covered": true
+    },
+    {
+      "sheet": "Материалы для всех",
+      "row": 8,
+      "catalogId": "common-07",
+      "title": "Изучи все необходимые документы и мануалы по работе в своей команде/вертикали/кластеру, которыми с тобой поделился бадди",
+      "covered": true
+    },
+    {
+      "sheet": "Материалы для всех",
+      "row": 9,
+      "catalogId": "common-08",
+      "title": "Изучи основы защиты персональных данных и другие инструкции Авито",
+      "covered": true
+    },
+    {
+      "sheet": "Материалы для всех",
+      "row": 10,
+      "catalogId": "common-09",
+      "title": "Изучи памятку, как закрывать практику, писать учебные работы по Авито",
+      "covered": true
+    },
+    {
+      "sheet": "Материалы для всех",
+      "row": 11,
+      "catalogId": "common-10",
+      "title": "Подготовься к экваторной встрече",
+      "covered": true
+    },
+    {
+      "sheet": "Материалы для всех",
+      "row": 12,
+      "catalogId": "common-11",
+      "title": "Экваторная встреча",
+      "covered": true
+    },
+    {
+      "sheet": "Материалы для всех",
+      "row": 13,
+      "catalogId": "common-12",
+      "title": "На 1:1 обсуди со стажёром промежуточные итоги стажировки, дай обратную связь по его прогрессу и результатам относительно",
+      "covered": true
+    },
+    {
+      "sheet": "Материалы для всех",
+      "row": 14,
+      "catalogId": "common-13",
+      "title": "Экваторная встреча",
+      "covered": true
+    },
+    {
+      "sheet": "Материалы для всех",
+      "row": 15,
+      "catalogId": "common-14",
+      "title": "Выпускной",
+      "covered": true
+    },
+    {
+      "sheet": "Материалы для всех",
+      "row": 16,
+      "catalogId": "common-15",
+      "title": "Пройди опрос о том, как прошла стажировка",
+      "covered": true
+    },
+    {
+      "sheet": "Материалы для всех",
+      "row": 17,
+      "catalogId": "common-16",
+      "title": "Пройди опрос о том, как прошла стажировка",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 2,
+      "catalogId": "backend-01",
+      "title": "Курс про Agile инструменты:",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 3,
+      "catalogId": "backend-02",
+      "title": "Изучи микросервисную архитектура в Авито",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 4,
+      "catalogId": "backend-03",
+      "title": "Сниффер запросов: установи на компьютер cниффер запросов (bruno или charles), LENS для работы с kubernetes",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 5,
+      "catalogId": "backend-04",
+      "title": "Изучи информацию про SPT",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 6,
+      "catalogId": "backend-05",
+      "title": "Изучи Zero Bug Policy (ZBP)",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 7,
+      "catalogId": "backend-06",
+      "title": "Расскажи о Grafana",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 8,
+      "catalogId": "backend-07",
+      "title": "Изучи информации про API",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 9,
+      "catalogId": "backend-08",
+      "title": "Изучи Effective Go",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 10,
+      "catalogId": "backend-09",
+      "title": "Принципы разработки Авито",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 11,
+      "catalogId": "backend-10",
+      "title": "Изучи Авито в цифрах",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 12,
+      "catalogId": "backend-11",
+      "title": "Настрой avito-cli",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 13,
+      "catalogId": "backend-12",
+      "title": "Добавь ключи в stash",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 14,
+      "catalogId": "backend-13",
+      "title": "Попроси руководителя или наставника добавить тебя в канал Tech-dep",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 15,
+      "catalogId": "backend-14",
+      "title": "Расскажи о Sentry",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 16,
+      "catalogId": "backend-15",
+      "title": "Прорешай задачи на учебной платформе, чтобы познакомиться с инструментами Авито",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 17,
+      "catalogId": "backend-16",
+      "title": "Изучи Демо Tech Platform",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 18,
+      "catalogId": "backend-17",
+      "title": "Изучи документацию по нагрузочному тестированию",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 19,
+      "catalogId": "backend-18",
+      "title": "Изучи инфомодель",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 20,
+      "catalogId": "backend-19",
+      "title": "Данные и хранилища Авито",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 21,
+      "catalogId": "backend-20",
+      "title": "Расскажи о Observer",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 22,
+      "catalogId": "backend-21",
+      "title": "Изучи PaaS: дашборд, а тут мы делимся новостями",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 23,
+      "catalogId": "backend-22",
+      "title": "Изучи документацию по Go",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 24,
+      "catalogId": "backend-23",
+      "title": "Изучи профили инженеров",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 25,
+      "catalogId": "backend-24",
+      "title": "Расскажи о Redash",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 26,
+      "catalogId": "backend-25",
+      "title": "Пройди курс \"Паттерны и практики написания кода\"",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 27,
+      "catalogId": "backend-26",
+      "title": "Найди подходящее сообщество для себя в Центре сообществ в Авито",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 28,
+      "catalogId": "backend-27",
+      "title": "Познакомься с процессом Шаталити - помогает планировать свои задачи и делать так чтобы плановые работы на разных сервиса",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 29,
+      "catalogId": "backend-28",
+      "title": "Изучи книгу Язык программирования Go: Донован, Керниган",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 30,
+      "catalogId": "backend-29",
+      "title": "Изучи книгу Ричардсон Крис. Микросервисы. Паттерны разработки и рефакторинга",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 31,
+      "catalogId": "backend-30",
+      "title": "Изучи книгу Бхаргава Адитья. Грокаем алгоритмы. Иллюстрированное пособие для программистов и любопытствующих",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 32,
+      "catalogId": "backend-31",
+      "title": "Изучи книгу Клеппман Мартин Высоконагруженные приложения. Программирование, масштабирование, поддержка",
+      "covered": true
+    },
+    {
+      "sheet": "Чек-лист Backend",
+      "row": 33,
+      "catalogId": "backend-32",
+      "title": "Рекомендуемые материалы от Димы Ходакова, директора центра разработки ABS",
+      "covered": true
+    }
+  ]
+}
