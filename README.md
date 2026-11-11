@@ -172,7 +172,7 @@ Compose собирает React-интерфейс и раздаёт его вм�
 
 ## AI A1–A6
 
-Поведение и источники — [docs/sdd/agent.md](docs/sdd/agent.md) и [docs/sdd/sources.md](docs/sdd/sources.md). Приёмочные случаи — ai/evals/dataset.json (40 офлайн-диалогов + 18 live-записей; live выполняются только с `--live` и ключом). Провайдер и переменные — [ai/README.md](ai/README.md).
+Поведение и источники — [docs/sdd/agent.md](docs/sdd/agent.md) и [docs/sdd/sources.md](docs/sdd/sources.md). Приёмочные случаи — ai/evals/dataset.json (40 legacy офлайн-диалогов + 14 buddy-router проверок; 18 live-записей запускаются только с `--live` и ключом). Провайдер и переменные — [ai/README.md](ai/README.md).
 
     cd ai && python -m evals.runner
     python scripts/check.py --release
@@ -180,3 +180,72 @@ Compose собирает React-интерфейс и раздаёт его вм�
 Общая команда проверки использует demo для воспроизводимости и не отправляет вопросы внешней модели. Live-оценка запускается отдельно по явной команде с настроенным ключом и делает платные вызовы.
 
 Результаты AI — [docs/qa/ai.md](docs/qa/ai.md). План пилота — [docs/pilot.md](docs/pilot.md). Данные для метрик и ограничения наблюдений — [docs/events.md](docs/events.md).
+
+## Запуск для судьи · AI-buddy онбординга
+
+### Docker Compose (Windows и Linux/macOS)
+
+Нужен Docker Desktop (Windows) или Docker Engine с Compose plugin (Linux/macOS). API, React UI, PostgreSQL и mock-интеграции запускаются без AI-ключа; порт доступен только локально.
+
+**Windows PowerShell:**
+
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+# В этом PowerShell-сеансе принудительно включаем demo и не передаём provider key.
+$env:AI_MODE='demo'; $env:AI_API_KEY=''; $env:AI_BASE_URL=''; $env:AI_MODEL=''; $env:BUDDY_AGENT_FACTORY=''
+docker compose up --build -d
+Invoke-WebRequest http://127.0.0.1:5050/health
+Start-Process http://127.0.0.1:5050/
+```
+
+**Linux/macOS:**
+
+```bash
+test -f .env || cp .env.example .env
+# Принудительно используем demo и оставляем provider credentials пустыми.
+AI_MODE=demo AI_API_KEY= AI_BASE_URL= AI_MODEL= BUDDY_AGENT_FACTORY= docker compose up --build -d
+curl -fsS http://127.0.0.1:5050/health
+xdg-open http://127.0.0.1:5050/  # macOS: open http://127.0.0.1:5050/
+```
+
+Первый запуск собирает web/API-образы и может занять несколько минут. Готовность API: `{"status":"ok"}`. По умолчанию `AI_MODE=demo`: chat-router детерминированный, все действия работают через локальные mock adapters. Наличие `.env` с пустым ключом нормально.
+
+### Аккаунты и переключение профиля
+
+Пароль всех синтетических пользователей — `training-only`.
+
+| Логин | Направление | Для демонстрации |
+| --- | --- | --- |
+| `intern-demo` | Backend | Основной профиль; общий чек-лист + 32 backend-пункта |
+| `intern-analytics` | Analytics | Общая часть + пункты аналитики |
+| `intern-marketing` | Marketing | Общая часть + пункты маркетинга |
+| `intern-ready`, `intern-new` | Backend / legacy | Сохранённые профили старого сценария «Первый PR» |
+
+Переключение профиля доступно в селекторе верхней панели. Общие 16 пунктов остаются одинаковыми для всех треков. В интерфейсе отображается режим AI и пометка `Интеграции: mock`.
+
+### Сценарий показа на 5–7 минут
+
+1. Войдите как `intern-demo`, откройте вкладку **Онбординг**: покажите этап, прогресс, следующий шаг и полный Backend-чек-лист (48 видимых пунктов).
+2. В чате спросите «Что дальше по чек-листу?» и «Объясни Zero Bug Policy» — второй ответ сопровождается цитатой и источником.
+3. Напишите «Позови наставника, я застрял»: проверьте карточку предпросмотра. Отмена оставляет действие неисполненным; подтверждение пишет только в локальную mock-среду. Повтор возвращает прежний результат, журнал аудита показывает события.
+4. Вставьте: «Куратор ответил: без тестов не катим. Когда покажешь PR?» — UI покажет разбор и сохранённую историю.
+5. Переключитесь на Analytics, затем Marketing: проверьте общий список и профильные пункты; после этого вернитесь в Backend.
+6. В колесе компетенций выставьте оценки по 8 осям, выберите 1–2 зоны и добавьте действия со сроком. Сохраните план, нажмите **Подготовить план куратору**, проверьте preview и подтвердите. Vision API не требуется; изображение и извлечённое описание доступны на странице.
+
+### Reset, seed и разработческий запуск
+
+Для сброса синтетических профилей и runtime-данных Compose (операция завершит их сессии):
+
+```bash
+docker compose exec api python -m server.store reset-demo --confirm
+```
+
+Windows PowerShell использует ту же команду. Контейнер выполняет migrate + seed при старте; повторный `seed` не стирает runtime-состояние. Для остановки — `docker compose down` (том с данными сохраняется). Удаляйте том только для полного сброса PostgreSQL: `docker compose down -v`.
+
+Для API вне Docker выполните локальные шаги из раздела «Сервер B2» (`python -m server.store migrate`, затем `seed`). Для отдельного web: `npm --prefix web ci`, `npm --prefix web run dev`; Vite проксирует `/api` к API на порту 5050.
+
+### Опциональный live AI
+
+Live-провайдер не нужен для судейского сценария. Для него задайте только в локальном `.env`: `AI_MODE=live`, `BUDDY_AGENT_FACTORY=agent.factory:create_agent`, `AI_BASE_URL`, `AI_MODEL`, `AI_API_KEY` и при необходимости `AI_TIMEOUT_SECONDS`, затем выполните `docker compose up --build -d api`. Ключ не вводится в браузер и не коммитится. Формат настройки DeepSeek/OpenAI-compatible provider описан в [ai/README.md](ai/README.md); live evals могут вызвать платный API и запускаются только по явной команде `python -m evals.runner --live` из `ai/`.
+
+Для release-проверки из корня с настроенным PostgreSQL и установленными зависимостями выполните `python scripts/check.py --release`. Полный профильный eval без внешних вызовов: из `ai/` — `python -m evals.runner`.

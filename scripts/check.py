@@ -10,7 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def run(*args, env_extra=None):
     subprocess.run(args, cwd=ROOT, check=True,
-                   env={**os.environ, "AI_MODE": "demo", **(env_extra or {})})
+                   env={**os.environ, "AI_MODE": "demo",
+                        "PYTHONIOENCODING": "utf-8", **(env_extra or {})})
 
 
 def main():
