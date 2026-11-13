@@ -7,6 +7,7 @@ import re
 import secrets
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import BoundedSemaphore
 
 from flask import Blueprint, jsonify, request
 
@@ -18,8 +19,16 @@ GEMINI_PACK = FIXTURES / "gemini_report"
 _ID = re.compile(r"^[a-z0-9-]{1,64}$")
 
 
-def buddy_blueprint(connect, session_user_id, cookie_name, ai_mode, llm=None):
+def _unavailable(message="Помощник временно недоступен. Попробуйте позже."):
+    return jsonify(code="unavailable", message=message), 503
+
+
+def buddy_blueprint(connect, session_user_id, cookie_name, ai_mode, llm=None,
+                    llm_slots=None, llm_wait=8.0):
     bp = Blueprint("buddy", __name__, url_prefix="/api/buddy")
+    # Concurrency limit for outbound LLM calls: a slow provider must not pile
+    # up worker threads; excess requests get an honest 503 instead of a queue.
+    llm_slots = llm_slots if llm_slots is not None else BoundedSemaphore(4)
 
     def current_user(conn):
         token = request.cookies.get(cookie_name, "")
@@ -116,33 +125,72 @@ def buddy_blueprint(connect, session_user_id, cookie_name, ai_mode, llm=None):
 
     @bp.post("/chat")
     def chat():
+        # Input validation needs no DB; fail fast before touching the pool.
+        data = request.get_json(silent=True)
+        if (not isinstance(data, dict) or set(data) != {"text"}
+                or not isinstance(data["text"], str)
+                or not data["text"].strip() or len(data["text"]) > 4000):
+            return bad_input()
+        text = data["text"].strip()
+
+        # Phase 1 (short transaction): facts, deterministic routing, writes.
         with connect() as conn:
             ctx, err = require_user(conn)
             if err:
                 return err
             user_id, profile = ctx
-            data = request.get_json(silent=True)
-            if (not isinstance(data, dict) or set(data) != {"text"}
-                    or not isinstance(data["text"], str)
-                    or not data["text"].strip() or len(data["text"]) > 4000):
-                return bad_input()
-            cur = conn.cursor()
+            payload, llm_request = orchestrator.prepare(
+                conn.cursor(), user_id, profile, text, ai_mode,
+                want_llm=llm is not None)
+            if llm_request is None:
+                conn.execute(
+                    "INSERT INTO conversation_memory (user_id, summary) "
+                    "VALUES (%s, %s) ON CONFLICT (user_id) DO UPDATE "
+                    "SET summary = EXCLUDED.summary, updated_at = now()",
+                    (user_id, f"last_intent={payload['intent']}"))
+
+        # Phase 2 (NO DB connection held): the provider call, bounded by a
+        # concurrency limit so a slow provider cannot pile up workers.
+        if llm_request is not None:
+            if not llm_slots.acquire(timeout=llm_wait):
+                return _unavailable("Помощник перегружен. "
+                                    "Попробуйте через минуту.")
             try:
-                result = orchestrator.respond(cur, user_id, data["text"].strip(),
-                                              llm=llm, ai_mode=ai_mode)
+                response = orchestrator.call_provider(llm, llm_request)
             except orchestrator.BuddyProviderUnavailable:
                 # Live provider failed: honest 503, never a demo answer under
                 # a live aiMode.
-                return jsonify(code="unavailable",
-                               message="Помощник временно недоступен. "
-                                       "Попробуйте позже."), 503
-            conn.execute(
-                "INSERT INTO conversation_memory (user_id, summary) "
-                "VALUES (%s, %s) ON CONFLICT (user_id) DO UPDATE "
-                "SET summary = EXCLUDED.summary, updated_at = now()",
-                (user_id, f"last_intent={result['intent']}"))
-            result["aiMode"] = ai_mode
-            return jsonify(result)
+                return _unavailable()
+            finally:
+                llm_slots.release()
+            # Phase 3 (fresh short transaction): guarded LLM text / steered
+            # read-only re-route, only if the user session and fact snapshot
+            # are still current; then persist conversation memory.
+            with connect() as conn:
+                ctx, err = require_user(conn)
+                if err:
+                    return err
+                current_user_id, current_profile = ctx
+                if current_user_id != user_id:
+                    return jsonify(code="session_expired",
+                                   message="Войдите снова"), 401
+                current_payload, current_request = orchestrator.prepare(
+                    conn.cursor(), user_id, current_profile, text, ai_mode,
+                    want_llm=True)
+                if (current_request is None
+                        or current_request.facts != llm_request.facts):
+                    return jsonify(code="conflict",
+                                   message="Состояние изменилось. Повторите запрос."), 409
+                payload = orchestrator.finalize(
+                    conn.cursor(), user_id, text, current_payload,
+                    response, ai_mode)
+                conn.execute(
+                    "INSERT INTO conversation_memory (user_id, summary) "
+                    "VALUES (%s, %s) ON CONFLICT (user_id) DO UPDATE "
+                    "SET summary = EXCLUDED.summary, updated_at = now()",
+                    (user_id, f"last_intent={payload['intent']}"))
+        payload["aiMode"] = ai_mode
+        return jsonify(payload)
 
     @bp.post("/actions/preview")
     def preview():

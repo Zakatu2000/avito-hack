@@ -8,18 +8,28 @@ Usage (from ai/):
 Checks per dialog (dataset.json): expected kind/sourceId/aiMode, required and
 forbidden text fragments, the mirrored server-side validation, the closed set
 of read tools actually called, and determinism (repeat entries run twice).
+`buddyCases` exercise onboarding intent classification; `buddyLlmCases` run
+the production server-side output gate against synthetic retrieval facts. Both
+are offline and never create provider traffic.
 Eval pass rate is a BEHAVIOR metric - never report it as line coverage.
 """
 
 import argparse
+import importlib
 import json
 import sys
 from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+# Always prioritize the repository package over ai/server.py. When Python has
+# already added the repo root later in sys.path, a membership check alone
+# leaves the AI service's top-level server.py shadowing server/.
+try:
+    sys.path.remove(str(REPO_ROOT))
+except ValueError:
+    pass
+sys.path.insert(0, str(REPO_ROOT))
 
 from agent.policy import BuddyAgent
 from context.models import AiMode, Workspace
@@ -29,6 +39,7 @@ from providers.base import LLMResponse, ProviderError, ProviderUnavailableError
 from ai.buddy_intents import classify as classify_buddy_intent
 
 ALLOWED_TOOLS = {"current_task", "instruction", "effective_access", "current_request"}
+_SERVER_ORCHESTRATOR = None
 
 DEFAULT_DATASET = Path(__file__).resolve().parent / "dataset.json"
 
@@ -188,6 +199,80 @@ def evaluate_buddy(entry: dict) -> list[str]:
     return violations
 
 
+def evaluate_buddy_llm(entry: dict) -> list[str]:
+    """Exercise the server-side LLM output gate offline (no DB or network).
+
+    These cases cover the second half of the onboarding path: a response can
+    change user-visible text only when its intent, source citations, IDs and
+    side-effect claims pass the same production finalizer used by the API.
+    """
+    from types import SimpleNamespace
+
+    global _SERVER_ORCHESTRATOR
+    if _SERVER_ORCHESTRATOR is None:
+        # ai/tests/conftest.py imports ai/server.py as the top-level module
+        # "server". Temporarily remove that module so this eval can load the
+        # repository's server package, then restore the AI service binding.
+        previous_server = sys.modules.get("server")
+        if previous_server is not None and not hasattr(previous_server, "__path__"):
+            del sys.modules["server"]
+        try:
+            _SERVER_ORCHESTRATOR = importlib.import_module("server.orchestrator")
+        finally:
+            if previous_server is not None:
+                sys.modules["server"] = previous_server
+    orchestrator = _SERVER_ORCHESTRATOR
+
+    if entry.get("providerMode") == "outage":
+        class _Unavailable:
+            def complete(self, _request):
+                raise ProviderUnavailableError("simulated provider outage")
+
+        try:
+            orchestrator.call_provider(_Unavailable(), object())
+        except orchestrator.BuddyProviderUnavailable:
+            return [] if entry["expect"] == "unavailable" else [
+                "provider outage unexpectedly surfaced as unavailable"
+            ]
+        return ["provider outage was not surfaced"]
+
+    payload = {
+        "intent": "next_step",
+        "text": "DETERMINISTIC DRAFT",
+        "sources": [{
+            "chunkId": "xlsx-week1",
+            "title": "Учебный план",
+            "section": "Первая неделя",
+            "quote": "Проверьте доступ к учебному репозиторию.",
+        }],
+        "nextStep": {"itemId": "common-01"},
+        "checklistItem": None,
+        "progress": {"completed": 2, "total": 48, "pct": 4.2},
+    }
+    response = SimpleNamespace(content=entry["output"],
+                               finish_reason=entry.get("finishReason", "stop"))
+    result = orchestrator.finalize(
+        None, "intern-01", "Что дальше?", payload, response, "live"
+    )
+    expected = entry["expect"]
+    if expected == "accept":
+        if result["text"] != entry.get("acceptedText"):
+            return ["valid grounded answer was not accepted"]
+        cited = {source["chunkId"] for source in result["sources"]}
+        if not cited or not cited <= {"xlsx-week1"}:
+            return [f"server returned foreign/empty citations: {sorted(cited)}"]
+        return []
+    if expected == "fallback":
+        if result["text"] != "DETERMINISTIC DRAFT":
+            return ["unsafe or malformed model answer did not fall back"]
+        return []
+    if expected == "blocked_intent":
+        if result["intent"] != "next_step" or result["text"] != "DETERMINISTIC DRAFT":
+            return ["LLM steered into an action-capable intent"]
+        return []
+    return [f"unknown buddy LLM eval expectation: {expected!r}"]
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="AI-buddy offline evals (A5)")
     parser.add_argument("--dataset", default=str(DEFAULT_DATASET))
@@ -234,6 +319,17 @@ def main(argv: list[str] | None = None) -> int:
         else:
             passed += 1
             print(f"PASS {entry['id']} ({entry['track']}, {entry['category']})")
+
+    for entry in dataset.get("buddyLlmCases", []):
+        violations = evaluate_buddy_llm(entry)
+        if violations:
+            failed += 1
+            print(f"FAIL {entry['id']} (buddy_llm, {entry.get('category', 'contract')})")
+            for violation in violations:
+                print(f"     - {violation}")
+        else:
+            passed += 1
+            print(f"PASS {entry['id']} (buddy_llm, {entry.get('category', 'contract')})")
 
     total = passed + failed
     print(f"\n{passed}/{total} dialogs passed (mode={'live' if args.live else 'demo'})")

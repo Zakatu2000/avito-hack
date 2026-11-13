@@ -13,8 +13,10 @@ INTENTS = (
 
 INJECTION_RE = re.compile(
     r"(игнорируй|забудь|отмени)\s+(все\s+)?(предыдущ|свои|эти)\s*(инструкц|правил|команд)"
+    r"|ignore\s+(all\s+)?(the\s+)?(previous|prior|above)\s+(instructions|rules|prompts)"
     r"|system\s*override|system\s*prompt|системн\w*\s+промпт"
     r"|ты\s+теперь\s+(админ|администратор|root)"
+    r"|you\s+are\s+now\s+(an?\s+)?(admin|administrator|root)"
     r"|выдай\s+(свой\s+)?системн\w*\s+промпт"
     r"|отметь\s+(мне\s+)?(все|всё)\s+.{0,20}(выполнен|закрыт|сделан)",
     re.IGNORECASE)
@@ -24,9 +26,10 @@ _SECRET = re.compile(
     r"|(password|passwd|token|secret|api[_-]?key)\s*[:=]\s*\S+",
     re.IGNORECASE)
 
-_ACCESS_WORDS = ("доступ", "доступа", "доступу", "права", "прав", "доступ к",
+_ACCESS_WORDS = ("доступ", "доступа", "доступу", "права", "право", "доступ к",
                  "403", "forbidden", "не открыва", "не могу открыть",
                  "нет доступа", "заявк", "предостав")
+_ACCESS_RIGHTS_WORD = re.compile(r"(?<!\w)прав(?!\w)", re.IGNORECASE)
 _PROGRESS_WORDS = ("прогресс", "сколько закрыл", "сколько выполнил", "где я",
                    "статус", "процент", "закрыл", "выполнил", "сколько пунктов")
 _NEXT_WORDS = ("что дальше", "дальше по", "следующий шаг", "следующ", "что делать",
@@ -67,7 +70,8 @@ def classify(text: str) -> str:
         return "curator_reply"
     if any(word in lowered for word in _COMPETENCY_WORDS):
         return "competency"
-    if any(word in lowered for word in _ACCESS_WORDS):
+    if (any(word in lowered for word in _ACCESS_WORDS)
+            or _ACCESS_RIGHTS_WORD.search(lowered)):
         return "access"
     if any(word in lowered for word in _PROGRESS_WORDS):
         return "progress"

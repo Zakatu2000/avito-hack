@@ -115,22 +115,43 @@ Python 3.12.10, Node v22.14.0, PostgreSQL 16 в docker). Данные синте
 
 `/api/buddy/chat` подключён к тому же провайдеру через
 `agent.factory:create_provider` (`server/orchestrator.py`): детерминированный
-роутер владеет фактами, источниками и всеми записями; LLM формулирует текст
-read-only ответов и может перенаправить интент только внутри
-`STEERABLE`/`LLM_TARGETS`. `unsafe` и `curator_reply` к провайдеру не
-отправляются. Текст LLM проверяется (ID ⊆ факты, без утверждений о
-выполненных действиях); невалидный вывод → детерминированный фолбэк; сбой
-провайдера → 503 `unavailable` без подмены demo.
+роутер владеет фактами, источниками и всеми записями. Модель может менять
+только read-only интенты (`STEERABLE`): `mentor` не является целью LLM, и
+эскалацию-preview может создать только детерминированный роутер по исходному
+сообщению пользователя. `unsafe`, неизвестные факты (`abstain`) и
+`curator_reply` к провайдеру не отправляются.
 
-- Тесты: `server/tests/test_buddy_live.py` (12: LLM-текст, стиринг
-  next_step→progress/mentor, фолбэки на невалидный JSON/finish_reason/
-  запретные интенты/чужие ID/ложные действия, 503 при сбое, unsafe и
-  curator_reply без вызова провайдера); `ai/tests/test_factory.py` (+3),
-  `ai/tests/test_deepseek.py` (+1). Прогон 2026-11-14: server+scripts 113/113,
-  ai 108/108, evals offline 54/54.
-- Живой smoke (docker compose, `.env` live, deepseek-flash): `/api/messages` →
-  `propose_access` + proposal, `aiMode=live`; `/api/buddy/chat` «Что дальше по
-  чек-листу?» → текст LLM из серверных фактов (common-01, 2/48), `aiMode=live`.
+Ответ модели принимается только при валидном JSON-контракте с обязательным
+`sourceIds`: если сервер нашёл источники, нужна хотя бы одна ссылка, и каждый
+`chunkId` должен входить в точный набор retrieval; сервер возвращает только
+процитированные источники. Чужой/смешанный citation, ID/число в тексте вне
+фактов, утверждение о выполненном действии, лишнее поле JSON, невалидный JSON или
+`finish_reason != stop` → детерминированный фолбэк. Это проверка членства
+цитат в retrieval, не доказательство семантического entailment каждого
+предложения.
+
+Чат выполняется в три фазы: собрать факты и закрыть короткую DB-транзакцию;
+вызвать провайдера без соединения с БД; в новой транзакции повторно проверить
+сессию и снимок фактов. Выход, основанный на устаревшем состоянии, отклоняется
+с 409. Одновременные вызовы ограничены семафором (`BUDDY_LLM_SLOTS`, default
+4), время ожидания слота — `BUDDY_LLM_WAIT` (default 8 s); переполнение и сбой
+провайдера дают 503 `unavailable`, без подмены live-режима demo-ответом.
+
+- Тесты `server/tests/test_buddy_live.py` (20: live-текст, безопасный стиринг,
+  отсутствие LLM-инициации эскалации, citations и fallback на чужой citation,
+  нецитированный/выдуманный ID/ложное действие, abstain без вызова модели,
+  stale-state 409, concurrency 503, provider outage 503, unsafe и
+  curator_reply без вызова провайдера).
+- Offline evals: 24 кейса классификатора + 13 server-side LLM output-gate
+  кейсов (валидная citation, отсутствующая/чужая/смешанная citation,
+  выдуманный ID, ложное действие, попытка `mentor`, malformed/truncated JSON,
+  outage, лишнее поле JSON, выдуманная метрика и пассивная ложь о заявке);
+  вместе с 40 legacy кейсами — **77/77**, без БД и сетевых вызовов.
+- `ai/tests`: **108/108**; `server/tests/test_buddy_live.py`: **20/20**.
+- Живой smoke текущей сборки после `docker compose up --build -d api`
+  (deepseek-flash): `/api/buddy/chat` «Объясни, что такое Zero Bug Policy» →
+  HTTP 200, `intent=explain`, `aiMode=live`, 2 серверных источника. Ранее
+  `/api/messages` также проверен: `propose_access` + proposal, `aiMode=live`.
 - Найденный дефект развёртывания: стенд с `AI_MODE=demo` и заданным
   `BUDDY_AGENT_FACTORY` отклонял каждое решение (demo ≠ live) → 503 в чате.
   Теперь такая конфигурация — ошибка старта API с явным сообщением

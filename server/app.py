@@ -3,6 +3,7 @@ import hashlib
 import os
 import secrets
 from pathlib import Path
+from threading import BoundedSemaphore
 
 import psycopg
 from flask import Flask, jsonify, request, send_from_directory
@@ -330,6 +331,9 @@ def create_app(config=None):
 
     # The onboarding buddy chat (/api/buddy/chat) uses the same live provider
     # for text formulation; deterministic routing still owns facts and writes.
+    # The provider call runs outside any DB connection under a concurrency
+    # limit (BUDDY_LLM_SLOTS, default 4) so a slow provider cannot pile up
+    # worker threads.
     buddy_llm = app.config.get("BUDDY_LLM")
     if buddy_llm is None and mode == "live" and factory_path:
         buddy_llm = import_string("agent.factory:create_provider")()
@@ -339,8 +343,24 @@ def create_app(config=None):
                 "with AI_BASE_URL/AI_MODEL/AI_API_KEY for the buddy chat "
                 "provider; fix the AI_* config or remove the factory")
 
-    app.register_blueprint(buddy_blueprint(connect, session_user_id, COOKIE, mode,
-                                           llm=buddy_llm))
+    configured_slots = app.config.get("BUDDY_LLM_SLOTS")
+    if hasattr(configured_slots, "acquire"):
+        # Test seam: inject a pre-filled semaphore to exercise overload.
+        llm_slots = configured_slots
+    else:
+        slots = int(configured_slots if configured_slots is not None
+                    else os.environ.get("BUDDY_LLM_SLOTS", "4"))
+        if not 1 <= slots <= 64:
+            raise ValueError("BUDDY_LLM_SLOTS must be in [1, 64]")
+        llm_slots = BoundedSemaphore(slots)
+    llm_wait = float(app.config.get(
+        "BUDDY_LLM_WAIT", os.environ.get("BUDDY_LLM_WAIT", "8")))
+    if not 0 < llm_wait <= 65:
+        raise ValueError("BUDDY_LLM_WAIT must be in (0, 65]")
+
+    app.register_blueprint(buddy_blueprint(
+        connect, session_user_id, COOKIE, mode, llm=buddy_llm,
+        llm_slots=llm_slots, llm_wait=llm_wait))
     if app.config["DEMO_OPERATOR"]:
         app.register_blueprint(operator_blueprint(connect, session_user_id, COOKIE))
     return app

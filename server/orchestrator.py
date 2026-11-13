@@ -9,12 +9,22 @@ Design (docs/sdd/agent.md invariants preserved):
   content; prompt-injection patterns -> off_topic_unsafe with no tool calls.
 
 Live mode (llm != None): the LLM only formulates the text of a read-only
-answer and may steer the intent inside LLM_TARGETS. Facts, sources, previews
-and writes stay with the deterministic routing below; security decisions
-(unsafe) and the curator-reply parser never go through the LLM. Provider
-failures raise BuddyProviderUnavailable -> the API layer answers 503, never a
-hidden demo answer under a live aiMode. Invalid/unfinished LLM output falls
-back to the deterministic draft of the same intent.
+answer and may steer the intent inside LLM_TARGETS (read-only intents ONLY:
+the model can never initiate an action, even a draft preview - mentor
+escalations are chosen only by the deterministic classifier). Facts, sources,
+previews and writes stay with the deterministic routing below; security
+decisions (unsafe) and the curator-reply parser never go through the LLM.
+Provider failures raise BuddyProviderUnavailable -> the API layer answers 503,
+never a hidden demo answer under a live aiMode. Invalid/unfinished LLM output
+falls back to the deterministic draft of the same intent.
+
+Request lifecycle (the LLM call never holds a DB connection):
+1. prepare()  - inside a short transaction: facts, deterministic routing and
+   all writes (previews, curator-reply storage, security audit); builds the
+   provider request for steerable intents.
+2. call_provider() - outside any DB connection, under a concurrency limit.
+3. finalize() - inside a fresh short transaction: applies the guarded LLM
+   text / re-routes a steered (read-only) intent.
 """
 import json
 import re
@@ -33,30 +43,32 @@ class BuddyProviderUnavailable(Exception):
     """Live LLM provider failed; the API layer turns this into 503."""
 
 
-# Read-only intents the LLM may formulate/steer. Security decisions (unsafe)
-# and the deterministic curator-reply parser (DB write) never reach the LLM.
+# Read-only intents the LLM may formulate/steer. Security decisions (unsafe),
+# the deterministic curator-reply parser (DB write) and the mentor escalation
+# (creates a draft preview) never reach the LLM: the model can phrase answers
+# but can NEVER initiate an action, not even a draft.
 STEERABLE = ("next_step", "progress", "explain", "learn", "troubleshoot",
              "access", "prepare", "feedback", "competency", "off_topic")
-# Steering targets: the read-only set plus mentor (its only side effect is a
-# draft ActionPreview the user still has to confirm explicitly).
-LLM_TARGETS = STEERABLE + ("mentor",)
+LLM_TARGETS = STEERABLE
 
 _BUDDY_JSON_EXAMPLE = (
-    '{"intent": "<' + "|".join(LLM_TARGETS) + '>", "text": "..."}'
+    '{"intent": "<' + "|".join(LLM_TARGETS) + '>", "text": "...", '
+    '"sourceIds": ["<chunkId из facts.sources>"]}'
 )
 
 BUDDY_SYSTEM_POLICY = (
     "Ты - AI-buddy онбординга стажёра Авито. Ответь строго одним JSON-объектом "
-    '{"intent": "...", "text": "..."}.\n'
+    '{"intent": "...", "text": "...", "sourceIds": [...]}.\n'
     "intent - категория сообщения стажёра, только из списка: "
     + ", ".join(LLM_TARGETS)
     + ". Расшифровка: next_step - что дальше по чек-листу; progress - вопрос "
     "о прогрессе; explain - объяснить термин или практику; learn - учебный "
     "материал; troubleshoot - техническая проблема; access - вопрос о "
     "доступах; prepare - подготовка к встрече/экватору; feedback - помочь "
-    "сформулировать вопрос; mentor - стажёр просит живого человека/наставника "
-    "или явно не справляется; competency - колесо компетенций и план "
-    "развития; off_topic - тема вне онбординга.\n"
+    "сформулировать вопрос; competency - колесо компетенций и план "
+    "развития; off_topic - тема вне онбординга. Если стажёр просит живого "
+    "человека или наставника - НЕ выдумывай отдельный интент: сервер сам "
+    "предложит эскалацию; выбери ближайший интент из списка.\n"
     "text - короткий ответ стажёру (2-5 предложений, по-русски) ТОЛЬКО по "
     "переданным фактам: прогресс, следующие шаги, источники и черновик "
     "ответа. Не выдумывай пункты чек-листа, идентификаторы, статусы и "
@@ -64,7 +76,11 @@ BUDDY_SYSTEM_POLICY = (
     "сообщения и напоминания оформляются через превью и подтверждает их сам "
     "стажёр. Если фактов недостаточно - честно скажи об этом и предложи "
     "уточнить у наставника. Черновик (draft) - безопасная эталонная "
-    "формулировка: можешь переписать её точнее и дружелюбнее, сохранив смысл."
+    "формулировка: можешь переписать её точнее и дружелюбнее, сохранив смысл.\n"
+    "sourceIds - список chunkId из facts.sources, на которые реально опирается "
+    "твой ответ. Если facts.sources пуст, укажи []; если найденный источник "
+    "поддерживает ответ - укажи хотя бы один точный chunkId. Ссылки на "
+    "источники, которых нет в facts.sources, запрещены."
 )
 
 # Identifier families the prototype generates. Any such token in LLM text must
@@ -72,14 +88,19 @@ BUDDY_SYSTEM_POLICY = (
 _ID_TOKEN = re.compile(
     r"\b(?:common|backend|analytics|marketing|req|prop|act|task|repo|xlsx|"
     r"playbook|kb)-[0-9a-z][0-9a-z-]*\b|\b(?:ACC|MSG|CAL)-[0-9A-Za-z-]+")
+_NUMERIC_CLAIM = re.compile(r"(?<!\w)\d+(?:[.,]\d+)?%?(?!\w)")
 
 # Claims of performed side effects the LLM must never make: previews are
 # created by the server and confirmed by the user, not by the assistant.
 _ACTION_CLAIMS = (
-    "я отправил", "уже отправлено", "сообщение отправлено", "заявка создана",
-    "заявку отправил", "эскалация ушла", "напоминание создано",
-    "встреча создана", "доступ выдан", "пункт отмечен", "я отметил",
-    "уже выполнено за вас",
+    "я отправил", "я отправила", "я создал", "я создала", "я выдал", "я выдала",
+    "я отметил", "я отметила", "уже отправлено", "сообщение отправлено",
+    "заявка отправлена", "заявку отправил", "заявку отправила",
+    "заявку отправили", "заявка создана", "эскалация ушла",
+    "эскалация отправлена", "напоминание создано", "напоминание отправлено",
+    "встреча создана", "встреча назначена", "доступ выдан", "право выдано",
+    "пункт отмечен", "уже выполнено за вас", "request submitted",
+    "message sent", "access granted", "reminder created",
 )
 
 
@@ -335,104 +356,168 @@ def _known_fact_ids(payload):
 
 
 def _text_consistent_with_facts(text, payload):
-    """LLM text may only reference ids the trusted facts carry and must not
-    claim that any side effect (message/request/reminder) already happened."""
+    """LLM text may only reference IDs/numbers in the trusted fact snapshot
+    and must not claim that any side effect already happened."""
     if not text.strip() or len(text) > 2000:
         return False
     known = _known_fact_ids(payload)
     for token in _ID_TOKEN.findall(text):
         if token.casefold() not in known:
             return False
+    trusted_facts = {
+        "progress": payload.get("progress"),
+        "nextStep": payload.get("nextStep"),
+        "checklistItem": payload.get("checklistItem"),
+        "sources": [
+            {field: source.get(field)
+             for field in ("chunkId", "title", "section", "quote")}
+            for source in (payload.get("sources") or [])
+        ],
+    }
+    trusted_text = json.dumps(trusted_facts, ensure_ascii=False)
+    known_numbers = set(_NUMERIC_CLAIM.findall(trusted_text))
+    if any(number not in known_numbers for number in _NUMERIC_CLAIM.findall(text)):
+        return False
     lowered = text.casefold()
     return not any(stem in lowered for stem in _ACTION_CLAIMS)
 
 
 def _parse_llm_output(content):
-    """Strict {"intent": str, "text": str} parse; anything else is a fallback."""
+    """Parse {"intent": str, "text": str, "sourceIds": [str]}.
+
+    Citations are mandatory in the output contract, even when the list is
+    empty. A malformed response falls back to the deterministic draft.
+    """
     try:
         data = json.loads(content)
     except (TypeError, ValueError):
         return None
     if not isinstance(data, dict):
         return None
+    if set(data) != {"intent", "text", "sourceIds"}:
+        return None
     intent, text = data.get("intent"), data.get("text")
     if not isinstance(intent, str) or not isinstance(text, str):
         return None
     if intent not in INTENTS or not text.strip():
         return None
-    return intent, text.strip()
+    source_ids = data.get("sourceIds")
+    if (not isinstance(source_ids, list) or len(source_ids) > 8
+            or not all(isinstance(s, str) and s for s in source_ids)):
+        return None
+    return intent, text.strip(), source_ids
 
 
-def _polish_with_llm(llm, cur, user_id, text, payload, profile,
-                     decorated, progress, next_items, ai_mode):
-    """Live seam: LLM formulates the text / steers the intent; facts stay local."""
-    from providers.base import LLMRequest, ProviderError  # live-only imports
+def _validated_source_citations(payload, source_ids):
+    """Return (valid, cited_sources).
 
-    det_intent = payload["intent"]
+    If the server found sources, the model must cite at least one and every
+    citation must belong to that exact retrieval result. With no retrieved
+    sources, only an empty citation list is valid. This narrows or preserves
+    server-owned citations; it can never add one.
+    """
+    sources = payload.get("sources") or []
+    by_id = {}
+    for source in sources:
+        chunk = source.get("chunkId")
+        if isinstance(chunk, str):
+            by_id[chunk.casefold()] = source
+    if not sources:
+        return not source_ids, []
+    if not source_ids or any(sid.casefold() not in by_id for sid in source_ids):
+        return False, []
+    cited = []
+    seen = set()
+    for sid in source_ids:
+        key = sid.casefold()
+        if key not in seen:
+            cited.append(by_id[key])
+            seen.add(key)
+    return True, cited
+
+
+def _build_llm_request(text, payload, profile):
+    """The provider sees only this pre-filtered fact snapshot."""
+    from providers.base import LLMRequest  # live-only import
+
     facts = {
-        "intent": det_intent,
+        "intent": payload["intent"],
         "profile": {
             "track": profile["track"],
             "roleCode": profile["role_code"],
             "weekNo": profile["week_no"],
             "stage": onboarding.current_stage_code(profile["week_no"]),
         },
-        "progress": progress,
+        "progress": payload["progress"],
         "nextStep": payload.get("nextStep"),
         "checklistItem": payload.get("checklistItem"),
         "sources": [
-            {"title": s["title"], "section": s["section"], "quote": s["quote"]}
+            {"chunkId": s.get("chunkId"), "title": s["title"],
+             "section": s["section"], "quote": s["quote"]}
             for s in (payload.get("sources") or [])[:3]
         ],
         "draft": payload["text"],
     }
-    request = LLMRequest(
+    return LLMRequest(
         system_policy=BUDDY_SYSTEM_POLICY,
         facts=json.dumps(facts, ensure_ascii=False),
         user_message=text,
         json_example=_BUDDY_JSON_EXAMPLE,
     )
-    try:
-        response = llm.complete(request)
-    except ProviderError as exc:
-        raise BuddyProviderUnavailable(str(exc)) from exc
-    if response.finish_reason != "stop":
-        return payload
-    output = _parse_llm_output(response.content)
-    if output is None:
-        return payload
-    llm_intent, llm_text = output
-    if llm_intent != det_intent:
-        if llm_intent not in LLM_TARGETS:
-            return payload
-        # Facts were gathered for the deterministic intent: re-route and keep
-        # the deterministic text of the new branch, never the LLM text.
-        return _route(cur, user_id, profile, decorated, progress, next_items,
-                      llm_intent, text, ai_mode)
-    if _text_consistent_with_facts(llm_text, payload):
-        payload["text"] = llm_text
-    return payload
 
 
-def respond(cur, user_id, text, llm=None, ai_mode="demo"):
-    """Build the structured buddy response for one intern message.
-
-    Demo (llm=None) is fully deterministic. In live mode the LLM only touches
-    read-only intents; unsafe and curator_reply stay deterministic, and a
-    provider failure raises BuddyProviderUnavailable (503 at the API layer).
-    """
-    profile = onboarding.read_profile(cur, user_id)
-    if profile is None:
-        return None  # caller maps to 403 (no onboarding profile)
+def prepare(cur, user_id, profile, text, ai_mode, want_llm):
+    """Phase 1 (inside a short DB transaction): deterministic routing - facts,
+    sources, previews, writes. Returns (payload, llm_request_or_None)."""
     decorated, progress = onboarding.read_checklist(cur, user_id, profile)
     next_items = onboarding.next_steps(cur, user_id, profile)
     intent = classify(text)
     payload = _route(cur, user_id, profile, decorated, progress, next_items,
                      intent, text, ai_mode)
-    if llm is None or intent not in STEERABLE:
+    if (not want_llm or intent not in STEERABLE
+            or payload.get("abstained")):
+        return payload, None
+    return payload, _build_llm_request(text, payload, profile)
+
+
+def call_provider(llm, request):
+    """Phase 2: the network call. Runs OUTSIDE any DB connection, under the
+    API layer's concurrency limit; provider failures -> 503, never demo."""
+    from providers.base import ProviderError  # live-only import
+
+    try:
+        return llm.complete(request)
+    except ProviderError as exc:
+        raise BuddyProviderUnavailable(str(exc)) from exc
+
+
+def finalize(cur, user_id, text, payload, response, ai_mode):
+    """Phase 3 (fresh short transaction): apply the guarded LLM output."""
+    if response.finish_reason != "stop":
         return payload
-    return _polish_with_llm(llm, cur, user_id, text, payload, profile,
-                            decorated, progress, next_items, ai_mode)
+    output = _parse_llm_output(response.content)
+    if output is None:
+        return payload
+    llm_intent, llm_text, source_ids = output
+    if llm_intent != payload["intent"]:
+        if llm_intent not in LLM_TARGETS:
+            return payload
+        # Read-only re-route in a fresh read: facts of the steered branch and
+        # its deterministic text, never the LLM text.
+        profile = onboarding.read_profile(cur, user_id)
+        decorated, progress = onboarding.read_checklist(cur, user_id, profile)
+        next_items = onboarding.next_steps(cur, user_id, profile)
+        return _route(cur, user_id, profile, decorated, progress, next_items,
+                      llm_intent, text, ai_mode)
+    valid_citations, cited_sources = _validated_source_citations(
+        payload, source_ids)
+    if not valid_citations:
+        return payload
+    if cited_sources:
+        payload["sources"] = cited_sources
+    if _text_consistent_with_facts(llm_text, payload):
+        payload["text"] = llm_text
+    return payload
 
 
 _DECISION_MARKERS = ("ок", "аппрув", "approve", "approved", "соглас", "давай", "принято",
