@@ -20,12 +20,26 @@ from providers.deepseek import DeepSeekProvider
 from settings import Settings
 
 
+def create_provider(settings: Settings | None = None) -> DeepSeekProvider | None:
+    """Live LLM provider for server call sites outside AgentRunner.
+
+    The onboarding buddy chat (/api/buddy/chat) uses the provider directly for
+    text formulation inside the server's deterministic routing. Returns None in
+    demo mode; live without full AI_* config raises via Settings validation.
+    """
+    settings = settings or Settings()
+    if settings.ai_mode != "live":
+        return None
+    # One client per call site; timeout stays below the caller's budget.
+    client = httpx.Client(timeout=settings.deepseek_timeout_seconds)
+    return DeepSeekProvider(settings, client)
+
+
 def create_agent(settings: Settings | None = None) -> BuddyAgent:
     # The server import-string contract calls this with no arguments; tests
     # inject Settings(_env_file=None) to stay independent of a local ai/.env.
     settings = settings or Settings()
-    if settings.ai_mode == "live":
-        # One process-wide client; timeout stays below the AgentRunner budget.
-        client = httpx.Client(timeout=settings.deepseek_timeout_seconds)
-        return BuddyAgent(AiMode.LIVE, DeepSeekProvider(settings, client))
+    provider = create_provider(settings)
+    if provider is not None:
+        return BuddyAgent(AiMode.LIVE, provider)
     return BuddyAgent(AiMode.DEMO)

@@ -18,7 +18,7 @@ GEMINI_PACK = FIXTURES / "gemini_report"
 _ID = re.compile(r"^[a-z0-9-]{1,64}$")
 
 
-def buddy_blueprint(connect, session_user_id, cookie_name, ai_mode):
+def buddy_blueprint(connect, session_user_id, cookie_name, ai_mode, llm=None):
     bp = Blueprint("buddy", __name__, url_prefix="/api/buddy")
 
     def current_user(conn):
@@ -127,7 +127,15 @@ def buddy_blueprint(connect, session_user_id, cookie_name, ai_mode):
                     or not data["text"].strip() or len(data["text"]) > 4000):
                 return bad_input()
             cur = conn.cursor()
-            result = orchestrator.respond(cur, user_id, data["text"].strip())
+            try:
+                result = orchestrator.respond(cur, user_id, data["text"].strip(),
+                                              llm=llm, ai_mode=ai_mode)
+            except orchestrator.BuddyProviderUnavailable:
+                # Live provider failed: honest 503, never a demo answer under
+                # a live aiMode.
+                return jsonify(code="unavailable",
+                               message="Помощник временно недоступен. "
+                                       "Попробуйте позже."), 503
             conn.execute(
                 "INSERT INTO conversation_memory (user_id, summary) "
                 "VALUES (%s, %s) ON CONFLICT (user_id) DO UPDATE "

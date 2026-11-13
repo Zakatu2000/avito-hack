@@ -71,7 +71,8 @@ class DeepSeekProvider:
         user_prompt = (
             f"Факты (json): {request.facts}\n\n"
             f"Вопрос стажёра: {request.user_message}\n\n"
-            f"Ответь одним json-объектом по образцу: {_JSON_EXAMPLE}"
+            f"Ответь одним json-объектом по образцу: "
+            f"{request.json_example or _JSON_EXAMPLE}"
         )
         payload = {
             "model": settings.deepseek_model,

@@ -18,6 +18,9 @@ class LLMRequest(ContractModel):
 
     `facts` is a pre-filtered serialization of trusted facts: no secrets, no
     internal roles, no unfiltered instruction texts (filtering is task A2/A3).
+    `json_example` lets a call site override the response-format example (the
+    onboarding buddy chat uses a different closed intent set than the legacy
+    First-PR agent); None keeps the provider default.
     """
 
     system_policy: str
@@ -25,6 +28,7 @@ class LLMRequest(ContractModel):
     user_message: str
     max_output_tokens: int = 800
     timeout_seconds: float = 8.0
+    json_example: str | None = None
 
 
 class LLMResponse(ContractModel):

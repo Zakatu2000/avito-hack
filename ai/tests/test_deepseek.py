@@ -77,6 +77,25 @@ def test_success_sends_contract_shaped_request() -> None:
     assert '"intent"' in body["messages"][1]["content"]
 
 
+def test_custom_json_example_overrides_the_default() -> None:
+    # The onboarding buddy chat uses a different closed intent set; the
+    # response-format example must come from the request, not be hard-coded.
+    provider, calls = make_provider(
+        lambda _request: completion('{"intent": "next_step", "text": "ок"}')
+    )
+    request = LLMRequest(
+        system_policy="policy",
+        facts="{}",
+        user_message="вопрос",
+        json_example='{"intent": "<next_step|progress>", "text": "..."}',
+    )
+    provider.complete(request)
+    body = json.loads(calls[0].content)
+    prompt = body["messages"][1]["content"]
+    assert "<next_step|progress>" in prompt
+    assert "blocker_access" not in prompt
+
+
 def test_blank_content_is_retried_once_then_succeeds() -> None:
     answers = iter(
         [completion("   "), completion('{"intent": "unclear", "text": "ок"}')]

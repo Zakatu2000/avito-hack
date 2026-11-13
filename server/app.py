@@ -328,7 +328,19 @@ def create_app(config=None):
                 raise AccessError(403, "Операция недоступна")
             return jsonify(state)
 
-    app.register_blueprint(buddy_blueprint(connect, session_user_id, COOKIE, mode))
+    # The onboarding buddy chat (/api/buddy/chat) uses the same live provider
+    # for text formulation; deterministic routing still owns facts and writes.
+    buddy_llm = app.config.get("BUDDY_LLM")
+    if buddy_llm is None and mode == "live" and factory_path:
+        buddy_llm = import_string("agent.factory:create_provider")()
+        if buddy_llm is None:
+            raise RuntimeError(
+                "Live mode (BUDDY_AGENT_FACTORY) also requires AI_MODE=live "
+                "with AI_BASE_URL/AI_MODEL/AI_API_KEY for the buddy chat "
+                "provider; fix the AI_* config or remove the factory")
+
+    app.register_blueprint(buddy_blueprint(connect, session_user_id, COOKIE, mode,
+                                           llm=buddy_llm))
     if app.config["DEMO_OPERATOR"]:
         app.register_blueprint(operator_blueprint(connect, session_user_id, COOKIE))
     return app

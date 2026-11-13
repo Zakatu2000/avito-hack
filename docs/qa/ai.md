@@ -111,6 +111,31 @@ Python 3.12.10, Node v22.14.0, PostgreSQL 16 в docker). Данные синте
 - Тайм-аут провайдера строго меньше бюджета раннера — проверяется при
   старте сервера.
 
+## Live-режим онбординг-чата (2026-11-14)
+
+`/api/buddy/chat` подключён к тому же провайдеру через
+`agent.factory:create_provider` (`server/orchestrator.py`): детерминированный
+роутер владеет фактами, источниками и всеми записями; LLM формулирует текст
+read-only ответов и может перенаправить интент только внутри
+`STEERABLE`/`LLM_TARGETS`. `unsafe` и `curator_reply` к провайдеру не
+отправляются. Текст LLM проверяется (ID ⊆ факты, без утверждений о
+выполненных действиях); невалидный вывод → детерминированный фолбэк; сбой
+провайдера → 503 `unavailable` без подмены demo.
+
+- Тесты: `server/tests/test_buddy_live.py` (12: LLM-текст, стиринг
+  next_step→progress/mentor, фолбэки на невалидный JSON/finish_reason/
+  запретные интенты/чужие ID/ложные действия, 503 при сбое, unsafe и
+  curator_reply без вызова провайдера); `ai/tests/test_factory.py` (+3),
+  `ai/tests/test_deepseek.py` (+1). Прогон 2026-11-14: server+scripts 113/113,
+  ai 108/108, evals offline 54/54.
+- Живой smoke (docker compose, `.env` live, deepseek-flash): `/api/messages` →
+  `propose_access` + proposal, `aiMode=live`; `/api/buddy/chat` «Что дальше по
+  чек-листу?» → текст LLM из серверных фактов (common-01, 2/48), `aiMode=live`.
+- Найденный дефект развёртывания: стенд с `AI_MODE=demo` и заданным
+  `BUDDY_AGENT_FACTORY` отклонял каждое решение (demo ≠ live) → 503 в чате.
+  Теперь такая конфигурация — ошибка старта API с явным сообщением
+  (`server/app.py`).
+
 ## Ссылки
 
 - SDD и инварианты — `docs/sdd/agent.md`; нормативные кейсы — `docs/sdd/cases.md`.
