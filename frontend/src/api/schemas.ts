@@ -186,8 +186,27 @@ export const ChatReplySchema = z.object({
   intentId: z.string(),
   text: z.string(),
   actions: z.array(ChatActionSchema),
+  conversationId: z.string().optional(),
 })
 export type ChatReply = z.infer<typeof ChatReplySchema>
+
+export const ChatSummarySchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+export type ChatSummary = z.infer<typeof ChatSummarySchema>
+export const ChatListSchema = z.array(ChatSummarySchema)
+
+export const ChatHistoryMessageSchema = z.object({
+  id: z.union([z.number(), z.string()]),
+  role: z.enum(['user', 'bot']),
+  text: z.string(),
+  actions: z.array(ChatActionSchema).optional(),
+})
+export type ChatHistoryMessage = z.infer<typeof ChatHistoryMessageSchema>
+export const ChatHistorySchema = z.array(ChatHistoryMessageSchema)
 
 /* ---------- Ошибки API ---------- */
 

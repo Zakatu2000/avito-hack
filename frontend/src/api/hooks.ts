@@ -144,7 +144,20 @@ export function useApproveChecklistItem() {
 }
 
 export function useSendChatMessage() {
-  return useMutation({ mutationFn: (message: string) => service.sendChatMessage(message) })
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ message, conversationId }: { message: string; conversationId?: string | null }) =>
+      service.sendChatMessage(message, conversationId),
+    onSuccess: async (_reply, variables) => {
+      const invalidations = [qc.invalidateQueries({ queryKey: ['chats'] })]
+      if (variables.conversationId) {
+        invalidations.push(qc.invalidateQueries({
+          queryKey: ['chat-messages', variables.conversationId],
+        }))
+      }
+      await Promise.all(invalidations)
+    },
+  })
 }
 
 export type { AccessSystem, Request }

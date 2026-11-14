@@ -5,6 +5,8 @@ Hybrid = structured metadata (tier/track/role/topics) + Postgres FTS
 External providers never receive personal data: retrieval is fully local.
 """
 
+import re
+
 TIER_BY_SOURCE_TYPE = {
     "normative": "NORMATIVE",
     "reference": "PRIMARY_PLAYBOOK",
@@ -14,7 +16,11 @@ TIER_BY_SOURCE_TYPE = {
 
 
 def _ts_query(text):
-    terms = [t for t in (text or "").split() if len(t) >= 2][:12]
+    # to_tsquery accepts operators and syntax characters. Build its OR query
+    # only from extracted word tokens so punctuation, URLs, and pasted logs
+    # cannot produce a PostgreSQL syntax error or alter query semantics.
+    terms = re.findall(r"[0-9a-zа-яё]{2,}", (text or "").casefold())
+    terms = list(dict.fromkeys(terms))[:12]
     if not terms:
         return None
     return " | ".join(terms)
@@ -32,8 +38,9 @@ def search(cur, query, *, track=None, limit=4):
                CASE WHEN %s::text IS NULL THEN 0.0
                     ELSE ts_rank(c.fts, to_tsquery('russian', %s)) END AS rank
         FROM kb_chunks c JOIN kb_documents d ON d.id = c.doc_id
-        WHERE (d.tracks = '[]'::jsonb OR d.tracks ? 'common'
-               OR (%s::text IS NOT NULL AND d.tracks ? %s))
+        WHERE d.source_status <> 'unavailable'
+          AND (d.tracks = '[]'::jsonb OR d.tracks ? 'common'
+                OR (%s::text IS NOT NULL AND d.tracks ? %s))
           AND (%s::text IS NULL OR c.fts @@ to_tsquery('russian', %s))
         ORDER BY rank DESC, c.id
         LIMIT %s
@@ -71,8 +78,9 @@ def find_by_topics(cur, topics, *, track=None, limit=4):
                d.source_type, d.url, d.version, d.freshness, d.governance,
                d.source_status, d.title AS doc_title
         FROM kb_chunks c JOIN kb_documents d ON d.id = c.doc_id
-        WHERE (d.tracks = '[]'::jsonb OR d.tracks ? 'common'
-               OR (%s::text IS NOT NULL AND d.tracks ? %s))
+        WHERE d.source_status <> 'unavailable'
+          AND (d.tracks = '[]'::jsonb OR d.tracks ? 'common'
+                OR (%s::text IS NOT NULL AND d.tracks ? %s))
           AND c.topics ?| %s::text[]
         ORDER BY c.id LIMIT %s
         """,

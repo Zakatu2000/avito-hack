@@ -1,5 +1,6 @@
 """Frontend contract adapter. Durable requests, role checks and local demo grants."""
 import json
+import re
 import secrets
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -65,6 +66,70 @@ def body():
     if not isinstance(data, dict):
         raise PortalError(400, "Ожидается JSON-объект")
     return data
+
+
+# Smalltalk that must never reach the KB fallback: a bare greeting is not an
+# explain-query, so answer it adaptively with the real onboarding context.
+_GREETING_RE = re.compile(
+    r"^(привет(ствую)?|здравствуй(те)?|добрый\s+(день|вечер)|доброе\s+утро|"
+    r"хай|hello|hi|hey|ку|салют)[\s!.…]*$",
+    re.IGNORECASE)
+_THANKS_RE = re.compile(r"^(спасибо|благодарю|thanks|thank you)[\s!.…]*$", re.IGNORECASE)
+
+# Chunks below this FTS rank are noise (short stop-word matches like «из»);
+# showing them as «источники» produced irrelevant answers.
+MIN_SOURCE_SCORE = 0.01
+
+_CHAT_ID = re.compile(r"^chat-[0-9a-f]{24}$")
+_HISTORY_LIMIT = 10
+_EMAIL_RE = re.compile(r"\b[^\s@]+@[^\s@]+\.[^\s@]+\b")
+_PHONE_RE = re.compile(r"(?<!\w)(?:\+?\d[\d\s().-]{7,}\d)(?!\w)")
+
+
+def _conversation(conn, conversation_id, *, lock=False):
+    row = conn.execute(
+        "SELECT id, title, created_at, updated_at FROM portal_conversations "
+        "WHERE id=%s AND user_id=%s" + (" FOR UPDATE" if lock else ""),
+        (conversation_id, g.account["user_id"])).fetchone()
+    if not row:
+        raise PortalError(404, "Чат не найден", "NOT_FOUND")
+    return row
+
+
+def _public_conversation(row):
+    return dict(id=row["id"], title=row["title"],
+                createdAt=row["created_at"].isoformat(),
+                updatedAt=row["updated_at"].isoformat())
+
+
+def _save_message(conn, conversation_id, role, text, actions=()):
+    conn.execute(
+        "INSERT INTO portal_messages(conversation_id, role, text, actions) "
+        "VALUES (%s, %s, %s, %s)",
+        (conversation_id, role, text, json.dumps(list(actions), ensure_ascii=False)))
+    conn.execute("UPDATE portal_conversations SET updated_at=now() WHERE id=%s",
+                 (conversation_id,))
+
+
+def _history(conn, conversation_id):
+    rows = conn.execute(
+        "SELECT role, text FROM (SELECT role, text, id FROM portal_messages "
+        "WHERE conversation_id=%s ORDER BY id DESC LIMIT %s) recent ORDER BY id",
+        (conversation_id, _HISTORY_LIMIT)).fetchall()
+    return [{"role": r["role"], "text": r["text"]} for r in rows]
+
+
+def _title_for(text):
+    title = " ".join(text.split())[:60].strip(" .!?")
+    return title or "Новый чат"
+
+
+def _query_summary(text):
+    """Echo a short, non-identifying topic in an abstention, not the full prompt."""
+    summary = _EMAIL_RE.sub("[email скрыт]", text)
+    summary = _PHONE_RE.sub("[номер скрыт]", summary)
+    return " ".join(summary.split())[:100].strip(" «»")
+
 
 
 def validate_payload(kind, data):
@@ -262,41 +327,152 @@ def portal_blueprint(connect, ai_mode="demo", llm=None, llm_slots=None, llm_wait
                        questionsWithoutMentorShare=0, timeToFirstTaskDays=dict(before=0, current=0),
                        internsOnTrackShare=done / len(accounts) if accounts else 0)
 
+    @bp.get("/api/chats")
+    def list_chats():
+        with connect() as conn:
+            rows = conn.execute(
+                "SELECT id, title, created_at, updated_at FROM portal_conversations "
+                "WHERE user_id=%s ORDER BY updated_at DESC", (g.account["user_id"],)).fetchall()
+            return jsonify([_public_conversation(r) for r in rows])
+
+    @bp.post("/api/chats")
+    def create_chat():
+        data = request.get_json(silent=True)
+        if data is None:
+            data = {}
+        if not isinstance(data, dict):
+            raise PortalError(400, "Ожидается JSON-объект")
+        if not set(data) <= {"title"}:
+            raise PortalError(400, "Некорректные поля")
+        title = data.get("title") or "Новый чат"
+        if (not isinstance(title, str) or "\x00" in title
+                or not 1 <= len(title.strip()) <= 120):
+            raise PortalError(400, "Название чата — от 1 до 120 символов")
+        chat_id = "chat-" + secrets.token_hex(12)
+        with connect() as conn:
+            conn.execute(
+                "INSERT INTO portal_conversations(id, user_id, title) VALUES (%s, %s, %s)",
+                (chat_id, g.account["user_id"], title.strip()))
+            row = _conversation(conn, chat_id)
+            return jsonify(_public_conversation(row)), 201
+
+    @bp.delete("/api/chats/<chat_id>")
+    def delete_chat(chat_id):
+        with connect() as conn:
+            _conversation(conn, chat_id)
+            conn.execute("DELETE FROM portal_conversations WHERE id=%s", (chat_id,))
+            return "", 204
+
+    @bp.get("/api/chats/<chat_id>/messages")
+    def chat_messages(chat_id):
+        with connect() as conn:
+            _conversation(conn, chat_id)
+            rows = conn.execute(
+                "SELECT id, role, text, actions FROM portal_messages "
+                "WHERE conversation_id=%s ORDER BY id", (chat_id,)).fetchall()
+            return jsonify([dict(id=r["id"], role=r["role"], text=r["text"],
+                                 actions=r["actions"]) for r in rows])
+
     @bp.post("/api/chat")
     def chat():
         data = body()
-        if set(data) != {"message"} or not isinstance(data["message"], str) or not 1 <= len(data["message"].strip()) <= 4000:
+        if (not set(data) <= {"message", "conversationId"}
+                or not isinstance(data.get("message"), str)
+                or "\x00" in data.get("message", "")
+                or not 1 <= len(data["message"].strip()) <= 4000):
             raise PortalError(400, "Сообщение должно содержать от 1 до 4000 символов")
+        conversation_id = data.get("conversationId")
+        if conversation_id is not None and (not isinstance(conversation_id, str)
+                                            or not _CHAT_ID.match(conversation_id)):
+            raise PortalError(400, "Некорректный идентификатор чата")
         text = data["message"].strip()
-        intent = classify(text)
+        lowered = text.casefold()
         link, label = "/timeline", "Открыть путь адаптации"
+        history = []
         with connect() as conn:
+            if conversation_id is None:
+                conversation_id = "chat-" + secrets.token_hex(12)
+                conn.execute(
+                    "INSERT INTO portal_conversations(id, user_id, title) VALUES (%s, %s, %s)",
+                    (conversation_id, g.account["user_id"], _title_for(text)))
+            else:
+                _conversation(conn, conversation_id)
+            history = _history(conn, conversation_id)
             items = flat(checklist(conn, g.account["user_id"]))
             completed = sum(i["status"] == "done" for i in items)
             next_item = next((i for i in items if i["status"] != "done"), None)
+            open_item = next((i for i in items if i["status"] in ("in_progress", "pending_approval")), None)
+            intent = classify(text)
+            profile = onboarding.read_profile(conn.cursor(), g.account["user_id"])
             sources = []
             if intent == "unsafe":
                 answer = "Не передавайте пароли и токены. Я помогаю с адаптацией; права и действия проверяет сервер."
-            elif "отгул" in text.lower() or "отпуск" in text.lower():
+            elif _GREETING_RE.match(lowered):
+                intent = "greeting"
+                first_name = g.account["name"].split()[0]
+                context = (f" Сейчас у тебя в работе «{open_item['title']}»."
+                           if open_item else
+                           f" Следующий шаг по плану: «{next_item['title']}»." if next_item else "")
+                answer = (f"Привет, {first_name}! Я AI-buddy: помогаю с адаптацией — "
+                          f"отгулы, доступы, чек-лист, контакты и документы.{context} "
+                          f"О чём спросим?")
+            elif _THANKS_RE.match(lowered):
+                intent = "greeting"
+                answer = "Всегда пожалуйста! Если появится следующий вопрос по адаптации — я рядом."
+            elif "отгул" in lowered or "отпуск" in lowered:
                 answer, link, label = "Оформите даты и причину в форме отгула и подтвердите отправку.", "/requests/new/leave", "Оформить отгул"
             elif intent == "access":
                 answer, link, label = "Выберите систему, срок и обоснование в форме доступа. Отправка требует вашего подтверждения.", "/requests/new/access", "Запросить доступ"
             elif intent == "progress":
                 answer = f"Выполнено {completed} из {len(items)} пунктов адаптации."
+                if open_item:
+                    answer += f" Сейчас в работе: «{open_item['title']}» — предыдущие шаги без него не закроются."
             elif intent == "next_step":
-                answer = "Следующий шаг: " + next_item["title"] if next_item else "Все пункты адаптации выполнены."
+                if open_item:
+                    switching = any(marker in lowered for marker in (
+                        "другую задачу", "новую задачу", "перейти к следующ",
+                        "переключиться на", "параллельно следующ"))
+                    state = ("ждёт подтверждения наставника" if open_item["status"] == "pending_approval"
+                             else "сейчас в работе")
+                    if switching:
+                        answer = (f"Понял, ты хочешь перейти к другой задаче. Пункт "
+                                  f"«{open_item['title']}» {state}; не отмечай его выполненным "
+                                  "без результата. Если он блокирует работу — напиши, что мешает, "
+                                  "и я помогу обратиться к наставнику.")
+                    else:
+                        answer = f"Сначала заверши текущий шаг: «{open_item['title']}» ({state})."
+                        if next_item and next_item["id"] != open_item["id"]:
+                            answer += f" После него по плану идёт «{next_item['title']}»."
+                else:
+                    answer = "Следующий шаг: " + next_item["title"] if next_item else "Все пункты адаптации выполнены."
+            elif intent == "troubleshoot":
+                if "скач" in lowered or "файл" in lowered:
+                    answer = ("Понял: файл не скачивается. Напиши, в какой системе он находится, "
+                              "точный текст ошибки и что происходит после нажатия. Пароли и токены "
+                              "не присылай.")
+                else:
+                    answer = ("Понял, возникла техническая проблема. Напиши систему и шаг, точный "
+                              "текст ошибки и что уже пробовал. Пароли и токены не присылай.")
+                link, label = "/contacts", "Контакты наставника"
             elif intent in ("mentor", "feedback", "curator_reply"):
                 answer, link, label = "Обратитесь к наставнику. Опишите задачу, что уже попробовали и где нужна помощь.", "/contacts", "Контакты наставника"
             else:
-                profile = onboarding.read_profile(conn.cursor(), g.account["user_id"])
-                sources = knowledge.search(conn.cursor(), text, track=profile["track"])
-                answer = (sources[0]["snippet"] + "\nИсточник: " + sources[0]["title"]) if sources else "Не нашёл подтверждённой информации. Уточните вопрос или обратитесь к наставнику."
-                link, label = "/kb", "Открыть базу знаний"
+                sources = [s for s in knowledge.search(conn.cursor(), text, track=profile["track"])
+                           if s["score"] >= MIN_SOURCE_SCORE]
+                if sources:
+                    answer = sources[0]["snippet"] + "\nИсточник: " + sources[0]["title"]
+                    link, label = "/kb", "Открыть базу знаний"
+                else:
+                    summary = _query_summary(text)
+                    answer = (f"По запросу «{summary}» в базе адаптации нет проверенного ответа — "
+                              "выдумывать не буду. Если это про онбординг, уточни шаг или систему; "
+                              "если вопрос вне онбординга, помогу составить короткий вопрос наставнику.")
+                    link, label = "/contacts", "Контакты наставника"
         # Use the same provider and grounding gates as the source backend.
         payload = dict(intent=intent, text=answer, progress=dict(completed=completed, total=len(items), pct=round(100 * completed / len(items), 1) if items else 0), sources=sources,
                        nextStep=dict(id=next_item["id"], title=next_item["title"]) if next_item else None)
-        if llm is not None and sources and intent in orchestrator.STEERABLE:
-            llm_request = orchestrator._build_llm_request(text, payload, profile)
+        if llm is not None and intent in orchestrator.STEERABLE and (sources or intent in ("progress", "next_step", "access")):
+            llm_request = orchestrator._build_llm_request(text, payload, profile, history=history)
             if not llm_slots.acquire(timeout=llm_wait):
                 raise PortalError(503, "Помощник перегружен. Повторите позже", "UNAVAILABLE")
             try:
@@ -307,13 +483,21 @@ def portal_blueprint(connect, ai_mode="demo", llm=None, llm_slots=None, llm_wait
                 llm_slots.release()
             parsed = orchestrator._parse_llm_output(response.content) if response.finish_reason == "stop" else None
             if parsed and parsed[0] == intent and orchestrator._text_consistent_with_facts(parsed[1], payload):
-                ok, _ = orchestrator._validated_source_citations(payload, parsed[2])
+                ok, cited = orchestrator._validated_source_citations(payload, parsed[2])
                 if ok:
                     answer = parsed[1]
+                    if cited:
+                        sources = cited
         # Revalidate session after a potentially slow provider call.
+        actions = [dict(id="open-page", label=label, kind="navigate", target=link)]
         with connect() as conn:
             if not current_account(conn):
                 raise PortalError(401, "Войдите в аккаунт", "UNAUTHENTICATED")
-        return jsonify(intentId=intent, text=answer, actions=[dict(id="open-page", label=label, kind="navigate", target=link)])
+            _conversation(conn, conversation_id, lock=True)
+            stored_text = ("[сообщение скрыто проверкой безопасности]"
+                           if intent == "unsafe" else text)
+            _save_message(conn, conversation_id, "user", stored_text)
+            _save_message(conn, conversation_id, "bot", answer, actions)
+        return jsonify(intentId=intent, text=answer, actions=actions, conversationId=conversation_id)
 
     return bp

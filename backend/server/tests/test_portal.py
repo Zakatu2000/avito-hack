@@ -146,8 +146,9 @@ def test_reference_data_chat_and_metrics(app):
         response = client.post("/api/chat", json={"message": text}, headers=headers)
         assert response.status_code == 200, response.get_json()
         reply = response.get_json()
-        assert set(reply) == {"intentId", "text", "actions"}
+        assert set(reply) == {"intentId", "text", "actions", "conversationId"}
         assert reply["text"] and reply["actions"][0]["kind"] == "navigate"
+        assert reply["conversationId"].startswith("chat-")
     assert client.post("/api/chat", json={"text": "wrong format"}, headers=headers).status_code == 400
 
 

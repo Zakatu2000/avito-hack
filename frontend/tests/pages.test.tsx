@@ -11,6 +11,7 @@ import { RequestsPage } from '../src/pages/RequestsPage'
 import { TeamPage } from '../src/pages/TeamPage'
 import { TimelinePage } from '../src/pages/TimelinePage'
 import { useDevStore } from '../src/stores/dev'
+import { useChatStore } from '../src/stores/chat'
 import { loginAs, renderApp, renderWithProviders } from './helpers'
 
 describe('Вход тестовым пользователем (spec: frontend/specs/004-roles-permissions.md)', () => {
@@ -171,7 +172,7 @@ describe('Чат с ботом (spec: frontend/specs/005-chat-bot.md)', () => {
   it('приветствует, отвечает по интенту и даёт карточку действия', async () => {
     loginAs('intern')
     renderWithProviders(<ChatPage />)
-    expect(await screen.findByText(/детерминированный прототип/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Спроси коротко/i)).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Как оформить отгул?' }))
     const reply = await screen.findByText(/согласовать/i)
@@ -188,11 +189,39 @@ describe('Чат с ботом (spec: frontend/specs/005-chat-bot.md)', () => {
     expect(await screen.findByText(/Марина Ким/)).toBeInTheDocument()
   })
 
+  it('создаёт, переключает и удаляет серверные чаты с их историей', async () => {
+    loginAs('intern')
+    const { unmount } = renderWithProviders(<ChatPage />)
+    await screen.findByText(/Спроси коротко/i)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Как оформить отгул?' }))
+    expect(await screen.findByText(/согласовать/i)).toBeInTheDocument()
+
+    const chatList = screen.getByLabelText('Список чатов')
+    await userEvent.click(screen.getByRole('button', { name: '+ Новый чат' }))
+    await screen.findByRole('button', { name: /^Новый чат$/ })
+    await userEvent.click(within(chatList).getByRole('button', { name: 'Как оформить отгул?' }))
+    expect(await screen.findByText(/согласовать/i)).toBeInTheDocument()
+
+    // Simulate a reload: clear the in-memory transcript but keep the selected
+    // chat id; the new page must restore messages from the API history endpoint.
+    unmount()
+    useChatStore.setState({ messages: [], typing: false, lastUserMessage: null })
+    renderWithProviders(<ChatPage />)
+    expect(await screen.findByText(/согласовать/i)).toBeInTheDocument()
+    const reloadedChatList = screen.getByLabelText('Список чатов')
+
+    await userEvent.click(within(reloadedChatList).getByRole('button', { name: 'Удалить чат «Как оформить отгул?»' }))
+    await waitFor(() => {
+      expect(within(reloadedChatList).queryByRole('button', { name: 'Как оформить отгул?' })).not.toBeInTheDocument()
+    })
+  })
+
   it('при сбое сервиса показывает ошибку и повтор работает', async () => {
     loginAs('intern')
     useDevStore.setState({ failureMode: 'always' })
     renderWithProviders(<ChatPage />)
-    await screen.findByText(/детерминированный прототип/i)
+    await screen.findByText(/Спроси коротко/i)
     await userEvent.click(screen.getByRole('button', { name: 'Что дальше по плану?' }))
     expect(await screen.findByText('Не доставлено')).toBeInTheDocument()
 
