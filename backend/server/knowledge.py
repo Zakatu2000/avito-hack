@@ -7,13 +7,14 @@ External providers never receive personal data: retrieval is fully local.
 
 import re
 
+MIN_RELEVANCE_SCORE = 0.045
+
 TIER_BY_SOURCE_TYPE = {
     "normative": "NORMATIVE",
     "reference": "PRIMARY_PLAYBOOK",
     "educational": "COURSE_SPEC",
     "public_context": "SECONDARY_PUBLIC",
 }
-
 
 def _ts_query(text):
     # to_tsquery accepts operators and syntax characters. Build its OR query
@@ -65,9 +66,12 @@ def search(cur, query, *, track=None, limit=4):
             "checklistRefs": r["checklist_refs"],
             "score": round(float(r["rank"]), 4),
         })
-    # Prefer chunks with an actual FTS hit; fall back to first rows otherwise.
+    # FTS OR-search often matches just one generic word ("работать" in a
+    # question about fatigue, for example). Keep only strong hits; a user
+    # clarification is safer than presenting an unrelated policy snippet.
     citations.sort(key=lambda c: -c["score"])
-    return citations[:limit]
+    return [citation for citation in citations
+            if citation["score"] >= MIN_RELEVANCE_SCORE][:limit]
 
 
 def find_by_topics(cur, topics, *, track=None, limit=4):

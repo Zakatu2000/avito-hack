@@ -74,11 +74,28 @@ _GREETING_RE = re.compile(
     r"^(привет(ствую)?|здравствуй(те)?|добрый\s+(день|вечер)|доброе\s+утро|"
     r"хай|hello|hi|hey|ку|салют)[\s!.…]*$",
     re.IGNORECASE)
+_IDENTITY_RE = re.compile(
+    r"^(?:(?:привет|здравствуй(?:те)?)[,\s]*)?"
+    r"(?:ты кто|кто ты(?: такой| такая)?|что ты умеешь|чем ты можешь помочь)"
+    r"[\s?!.…]*$",
+    re.IGNORECASE)
 _THANKS_RE = re.compile(r"^(спасибо|благодарю|thanks|thank you)[\s!.…]*$", re.IGNORECASE)
-
-# Chunks below this FTS rank are noise (short stop-word matches like «из»);
-# showing them as «источники» produced irrelevant answers.
-MIN_SOURCE_SCORE = 0.01
+_CORRECTION_RE = re.compile(
+    r"\b(?:это не (?:онбординг|то)|не про онбординг|не по теме|не о том|"
+    r"я не это спрашивал[а]?|ты не понял[а]?|ответ не туда)\b",
+    re.IGNORECASE)
+_TASK_HELP_RE = re.compile(
+    r"\b(?:решить|разобрать|сделать|выполнить)\b.{0,35}\bзадач\w*"
+    r"|\bзадач\w*.{0,35}\b(?:решить|разобрать|сделать|выполнить)\b",
+    re.IGNORECASE)
+_DOCS_LOCATION_RE = re.compile(
+    r"\b(?:где|куда|как найти|найти)\b.{0,40}"
+    r"\b(?:документ\w*|инструкц\w*|мануал\w*|баз\w+\s+знан\w*)",
+    re.IGNORECASE)
+_WELLBEING_MARKERS = (
+    "устал", "устала", "устали", "нет сил", "тяжело работать", "перегружен",
+    "перегружена", "выгор", "надоело работать",
+)
 
 _CHAT_ID = re.compile(r"^chat-[0-9a-f]{24}$")
 _HISTORY_LIMIT = 10
@@ -407,7 +424,7 @@ def portal_blueprint(connect, ai_mode="demo", llm=None, llm_slots=None, llm_wait
             sources = []
             if intent == "unsafe":
                 answer = "Не передавайте пароли и токены. Я помогаю с адаптацией; права и действия проверяет сервер."
-            elif _GREETING_RE.match(lowered):
+            elif _GREETING_RE.match(lowered) or _IDENTITY_RE.match(lowered):
                 intent = "greeting"
                 first_name = g.account["name"].split()[0]
                 context = (f" Сейчас у тебя в работе «{open_item['title']}»."
@@ -415,10 +432,25 @@ def portal_blueprint(connect, ai_mode="demo", llm=None, llm_slots=None, llm_wait
                            f" Следующий шаг по плану: «{next_item['title']}»." if next_item else "")
                 answer = (f"Привет, {first_name}! Я AI-buddy: помогаю с адаптацией — "
                           f"отгулы, доступы, чек-лист, контакты и документы.{context} "
-                          f"О чём спросим?")
+                          "Если пришёл с конкретным вопросом — напиши его, а я отвечу по сути.")
             elif _THANKS_RE.match(lowered):
                 intent = "greeting"
                 answer = "Всегда пожалуйста! Если появится следующий вопрос по адаптации — я рядом."
+            elif _CORRECTION_RE.search(lowered):
+                intent = "feedback"
+                answer = ("Понял, предыдущий ответ был не по теме. Не буду подставлять случайную "
+                          "статью. Скажи, что именно ты хотел узнать, и я отвечу по сути.")
+                link, label = "/chat", "Уточнить вопрос"
+            elif _TASK_HELP_RE.search(lowered):
+                intent = "feedback"
+                answer = ("Конечно, помогу разобраться. Пришли формулировку задачи, ожидаемый "
+                          "результат, что уже попробовал и где застрял — разложим её на шаги. "
+                          "Не вставляй пароли, токены и личные данные.")
+                link, label = "/timeline", "Путь адаптации"
+            elif _DOCS_LOCATION_RE.search(lowered):
+                answer = ("Документы и инструкции собраны в Базе знаний. Если ищешь конкретный "
+                          "файл, напиши его название или тему — помогу сузить поиск.")
+                link, label = "/kb", "Открыть базу знаний"
             elif "отгул" in lowered or "отпуск" in lowered:
                 answer, link, label = "Оформите даты и причину в форме отгула и подтвердите отправку.", "/requests/new/leave", "Оформить отгул"
             elif intent == "access":
@@ -455,10 +487,16 @@ def portal_blueprint(connect, ai_mode="demo", llm=None, llm_slots=None, llm_wait
                               "текст ошибки и что уже пробовал. Пароли и токены не присылай.")
                 link, label = "/contacts", "Контакты наставника"
             elif intent in ("mentor", "feedback", "curator_reply"):
-                answer, link, label = "Обратитесь к наставнику. Опишите задачу, что уже попробовали и где нужна помощь.", "/contacts", "Контакты наставника"
+                if any(marker in lowered for marker in _WELLBEING_MARKERS):
+                    answer = ("Сочувствую, похоже, ты сильно устал. Не нужно разбираться с этим "
+                              "в одиночку: можно обсудить нагрузку с наставником или руководителем. "
+                              "Если хочешь, помогу составить сообщение.")
+                else:
+                    answer = ("Обратись к наставнику. Опиши, что происходит, что уже пробовал "
+                              "и какая помощь нужна.")
+                link, label = "/contacts", "Контакты наставника"
             else:
-                sources = [s for s in knowledge.search(conn.cursor(), text, track=profile["track"])
-                           if s["score"] >= MIN_SOURCE_SCORE]
+                sources = knowledge.search(conn.cursor(), text, track=profile["track"])
                 if sources:
                     answer = sources[0]["snippet"] + "\nИсточник: " + sources[0]["title"]
                     link, label = "/kb", "Открыть базу знаний"
@@ -471,7 +509,8 @@ def portal_blueprint(connect, ai_mode="demo", llm=None, llm_slots=None, llm_wait
         # Use the same provider and grounding gates as the source backend.
         payload = dict(intent=intent, text=answer, progress=dict(completed=completed, total=len(items), pct=round(100 * completed / len(items), 1) if items else 0), sources=sources,
                        nextStep=dict(id=next_item["id"], title=next_item["title"]) if next_item else None)
-        if llm is not None and intent in orchestrator.STEERABLE and (sources or intent in ("progress", "next_step", "access")):
+        if llm is not None and intent in orchestrator.STEERABLE and (
+                sources or intent in ("progress", "next_step", "access", "explain")):
             llm_request = orchestrator._build_llm_request(text, payload, profile, history=history)
             if not llm_slots.acquire(timeout=llm_wait):
                 raise PortalError(503, "Помощник перегружен. Повторите позже", "UNAVAILABLE")
@@ -482,14 +521,33 @@ def portal_blueprint(connect, ai_mode="demo", llm=None, llm_slots=None, llm_wait
             finally:
                 llm_slots.release()
             parsed = orchestrator._parse_llm_output(response.content) if response.finish_reason == "stop" else None
-            if parsed and parsed[0] == intent and orchestrator._text_consistent_with_facts(parsed[1], payload):
-                ok, cited = orchestrator._validated_source_citations(payload, parsed[2])
-                if ok:
-                    answer = parsed[1]
+            if parsed and parsed[0] in orchestrator.LLM_TARGETS:
+                target_intent, candidate_text, source_ids = parsed
+                source_based_intents = ("explain", "learn", "troubleshoot")
+                citation_payload = (payload if target_intent in source_based_intents
+                                    else {**payload, "sources": []})
+                citations_ok, cited = orchestrator._validated_source_citations(
+                    citation_payload, source_ids)
+                if (citations_ok
+                        and orchestrator._text_consistent_with_facts(
+                            candidate_text, citation_payload)):
+                    intent = target_intent
+                    answer = candidate_text
+                    if intent == "off_topic":
+                        link = label = None
+                    elif intent in ("progress", "next_step"):
+                        link, label = "/timeline", "Открыть путь адаптации"
+                    elif intent == "access":
+                        link, label = "/requests/new/access", "Запросить доступ"
+                    elif intent in ("feedback", "prepare", "troubleshoot"):
+                        link, label = "/contacts", "Контакты наставника"
+                    elif intent in ("explain", "learn"):
+                        link, label = "/kb", "Открыть базу знаний"
                     if cited:
                         sources = cited
         # Revalidate session after a potentially slow provider call.
-        actions = [dict(id="open-page", label=label, kind="navigate", target=link)]
+        actions = ([dict(id="open-page", label=label, kind="navigate", target=link)]
+                   if link and label else [])
         with connect() as conn:
             if not current_account(conn):
                 raise PortalError(401, "Войдите в аккаунт", "UNAUTHENTICATED")

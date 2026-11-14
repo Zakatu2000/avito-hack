@@ -39,6 +39,44 @@ def test_search_passes_only_sanitized_tsquery():
     assert cursor.params[0] == "ошибка | to | tsquery | or | true"
 
 
+def test_search_drops_low_rank_generic_word_matches():
+    def row(chunk_id, rank):
+        return {
+            "id": chunk_id,
+            "doc_id": "playbook",
+            "title": "section",
+            "body": "snippet",
+            "quote": "quote",
+            "topics": [],
+            "conflict_note": None,
+            "checklist_refs": [],
+            "source_type": "reference",
+            "url": None,
+            "version": "v1",
+            "freshness": None,
+            "governance": "approved",
+            "source_status": "verified",
+            "doc_title": "Playbook",
+            "rank": rank,
+        }
+
+    class Cursor:
+        def execute(self, _sql, _params):
+            return self
+
+        def fetchall(self):
+            return [
+                row("one-common-word", 0.04137),
+                row("fatigue-keyword-only", 0.04449),
+                row("zero-bug-policy", 0.04965),
+                row("strong-match", 0.06206),
+            ]
+
+    results = search(Cursor(), "задача работать")
+
+    assert [source["chunkId"] for source in results] == ["strong-match", "zero-bug-policy"]
+
+
 def test_topic_lookup_excludes_unavailable_sources():
     class Cursor:
         sql = ""
