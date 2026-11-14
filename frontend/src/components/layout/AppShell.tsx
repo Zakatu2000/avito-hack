@@ -6,6 +6,8 @@ import { useThemeStore } from '../../stores/theme'
 import { useState } from 'react'
 import { BottomSheet } from '../ui/Overlay'
 import { useIsMobile } from '../../hooks/useMediaQuery'
+import { toast } from '../ui/Toast'
+import { getErrorMessage } from '../../api/client'
 
 export interface NavItem {
   to: string
@@ -89,8 +91,9 @@ function UserChip({ compact }: { compact?: boolean }) {
         variant="ghost"
         style={{ marginLeft: 'auto' }}
         onClick={() => {
-          logout()
-          navigate('/login')
+          void logout().then(() => navigate('/login')).catch((error: unknown) => {
+            toast(getErrorMessage(error, 'Не удалось выйти. Повторите попытку'), 'error')
+          })
         }}
       >
         Выйти

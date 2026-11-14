@@ -1,0 +1,3 @@
+# Keep backend text and SQL migration checksums stable across Windows/Linux.
+# Automatic detection preserves binary fixtures (PNG/PDF/DOCX).
+backend/** text=auto eol=lf

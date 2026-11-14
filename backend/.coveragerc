@@ -1,0 +1,15 @@
+[run]
+source =
+    server
+    ai
+omit =
+    server/tests/*
+    ai/tests/*
+data_file = reports/.coverage
+
+[report]
+show_missing = True
+precision = 2
+
+[json]
+output = reports/python-coverage.json

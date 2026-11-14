@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://avito-buddy.local/schemas/competency-assessment.json",
+  "title": "CompetencyAssessment",
+  "type": "object",
+  "required": ["track", "axes", "ratings", "priorities", "plan"],
+  "properties": {
+    "track": {"type": "string", "enum": ["backend", "analytics", "marketing"]},
+    "axes": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "required": ["id", "label"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "label": {"type": "string", "minLength": 1},
+          "ideal": {"type": "string"}
+        }
+      }
+    },
+    "ratings": {
+      "type": "object",
+      "description": "Самооценка по каждой из 8 осей, шкала 0–10.",
+      "minProperties": 8,
+      "maxProperties": 8,
+      "additionalProperties": {"type": "integer", "minimum": 0, "maximum": 10}
+    },
+    "priorities": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2,
+      "items": {"type": "string"},
+      "description": "1–2 оси (id), выбранные как зоны развития."
+    },
+    "plan": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["axisId", "action", "dueStage"],
+        "properties": {
+          "axisId": {"type": "string"},
+          "action": {"type": "string", "minLength": 3},
+          "dueStage": {"type": "string", "enum": ["week-1", "week-2", "month-1", "month-2", "month-3", "after-month-3"]},
+          "done": {"type": "boolean", "default": false}
+        }
+      }
+    },
+    "evidenceImages": {
+      "type": "array",
+      "items": {"type": "string", "description": "sha256 из images/manifest.json"}
+    }
+  }
+}

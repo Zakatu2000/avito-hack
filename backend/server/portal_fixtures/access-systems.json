@@ -1,0 +1,7 @@
+[
+  { "id": "confluence", "name": "Confluence", "description": "База знаний и документация команд", "defaultDurationDays": 90 },
+  { "id": "jira", "name": "Jira", "description": "Задачи, спринты и багтрекер", "defaultDurationDays": 90 },
+  { "id": "repo", "name": "Репозиторий команды", "description": "Код и код-ревью", "defaultDurationDays": 180 },
+  { "id": "grafana", "name": "Grafana", "description": "Дашборды и мониторинг", "defaultDurationDays": 90 },
+  { "id": "admin", "name": "Админ-панель (read-only)", "description": "Служебные данные для отладки", "defaultDurationDays": 30 }
+]

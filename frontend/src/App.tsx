@@ -1,4 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { isMockMode } from './api/auth'
+import { useChatStore } from './stores/chat'
+import { Button } from './components/ui/Button'
 import { useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { DevPanel } from './components/DevPanel'
@@ -41,6 +44,24 @@ function ThemeSync() {
 }
 
 export function App() {
+  const ready = useAuthStore((s) => s.ready)
+  const authError = useAuthStore((s) => s.error)
+  const userId = useAuthStore((s) => s.userId)
+  useEffect(() => {
+    if (!isMockMode) void useAuthStore.getState().initialize()
+  }, [])
+  useEffect(() => {
+    if (!isMockMode) {
+      queryClient.clear()
+      useChatStore.getState().reset()
+    }
+  }, [userId])
+  if (!ready) return (
+    <main className="login" aria-live="polite">
+      <p>{authError ?? 'Проверяем вход…'}</p>
+      {authError && <Button onClick={() => void useAuthStore.getState().initialize()}>Повторить</Button>}
+    </main>
+  )
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeSync />

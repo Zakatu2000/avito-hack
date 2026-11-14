@@ -4,6 +4,10 @@ import { Button } from '../components/ui/Button'
 import { Skeleton } from '../components/ui/Skeleton'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { useAuthStore } from '../stores/auth'
+import { useState, type FormEvent } from 'react'
+import { Input } from '../components/ui/Input'
+import { isMockMode } from '../api/auth'
+import { getErrorMessage } from '../api/client'
 
 const ROLE_TONE: Record<string, string> = {
   intern: 'var(--card-green)',
@@ -11,7 +15,7 @@ const ROLE_TONE: Record<string, string> = {
   lead: 'var(--card-blue)',
 }
 
-export function LoginPage() {
+function DemoLoginPage() {
   const { data: users, isLoading, error, refetch, isRefetching } = useUsers()
   const login = useAuthStore((s) => s.login)
   const currentUserId = useAuthStore((s) => s.userId)
@@ -85,6 +89,63 @@ export function LoginPage() {
             </span>
           </button>
         ))}
+      </section>
+    </div>
+  )
+}
+
+export function LoginPage() {
+  if (isMockMode) return <DemoLoginPage />
+  return <PasswordLoginPage />
+}
+
+function PasswordLoginPage() {
+  const [register, setRegister] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [name, setName] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
+  const userId = useAuthStore((s) => s.userId)
+  const signIn = useAuthStore((s) => s.signIn)
+  if (userId) return <Navigate to="/" replace />
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError(null)
+    setPending(true)
+    try {
+      await signIn(email.trim().toLowerCase(), password, register ? name.trim() : undefined)
+    } catch (err) {
+      setError(getErrorMessage(err, 'Не удалось войти. Проверьте соединение и повторите попытку'))
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <div className="login">
+      <section className="login__hero">
+        <div className="wordmark">
+          <span className="wordmark__top" style={{ fontSize: 22 }}>Avito Start · <em>AI-buddy</em></span>
+          <span className="wordmark__bottom">наставник для стажёров · прототип хакатона</span>
+        </div>
+        <h1 className="heading-xl login__hero-title">Стажировка без хаоса: <span className="hl hl-green">план</span>, запросы и подсказки в одном месте</h1>
+        <p className="body" style={{ maxWidth: 480 }}>AI-buddy ведёт по этапам адаптации, помогает оформить отгул и доступ, а наставнику экономит время на рутинных вопросах.</p>
+        <p className="caption">Прототип — не продукт Авито.</p>
+      </section>
+      <section className="login__panel" aria-label={register ? 'Регистрация' : 'Вход в аккаунт'}>
+        <h2 className="heading-m">{register ? 'Создать аккаунт' : 'Войти в аккаунт'}</h2>
+        <form onSubmit={(event) => void submit(event)} style={{ display: 'grid', gap: 16 }}>
+          {register && <Input name="name" label="Имя и фамилия" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} required minLength={2} maxLength={100} disabled={pending} />}
+          <Input name="email" label="Email" type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} required maxLength={254} disabled={pending} />
+          <Input name="password" label="Пароль" type="password" autoComplete={register ? 'new-password' : 'current-password'} value={password} onChange={(event) => setPassword(event.target.value)} required minLength={register ? 12 : 1} maxLength={128} hint={register ? 'Минимум 12 символов' : undefined} disabled={pending} />
+          {error && <p className="field__error" role="alert">{error}</p>}
+          <Button type="submit" loading={pending} fullWidth>{register ? 'Зарегистрироваться' : 'Войти'}</Button>
+        </form>
+        <Button variant="ghost" disabled={pending} onClick={() => { setRegister(!register); setError(null); setPassword('') }}>
+          {register ? 'Уже есть аккаунт? Войти' : 'Создать аккаунт'}
+        </Button>
       </section>
     </div>
   )
