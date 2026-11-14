@@ -1,3 +1,5 @@
+import { isMockMode } from '../api/auth'
+import { AdaptationPlanPage } from './AdaptationPlanPage'
 import { useState } from 'react'
 import { getErrorMessage } from '../api/client'
 import { useChecklist, useMe, useUpdateItemStatus } from '../api/hooks'
@@ -59,6 +61,10 @@ function ItemActions({
 }
 
 export function TimelinePage() {
+  return isMockMode ? <MockTimelinePage /> : <AdaptationPlanPage />
+}
+
+function MockTimelinePage() {
   const me = useMe()
   const checklist = useChecklist()
   const updateItem = useUpdateItemStatus()

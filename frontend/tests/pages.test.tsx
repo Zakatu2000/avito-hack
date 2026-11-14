@@ -171,7 +171,7 @@ describe('Чат с ботом (spec: frontend/specs/005-chat-bot.md)', () => {
   it('приветствует, отвечает по интенту и даёт карточку действия', async () => {
     loginAs('intern')
     renderWithProviders(<ChatPage />)
-    expect(await screen.findByText(/детерминированный прототип/i)).toBeInTheDocument()
+    expect(await screen.findByText(/учебный режим/i)).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Как оформить отгул?' }))
     const reply = await screen.findByText(/согласовать/i)
@@ -192,13 +192,14 @@ describe('Чат с ботом (spec: frontend/specs/005-chat-bot.md)', () => {
     loginAs('intern')
     useDevStore.setState({ failureMode: 'always' })
     renderWithProviders(<ChatPage />)
-    await screen.findByText(/детерминированный прототип/i)
+    await screen.findByText(/учебный режим/i)
     await userEvent.click(screen.getByRole('button', { name: 'Что дальше по плану?' }))
-    expect(await screen.findByText('Не доставлено')).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
 
     useDevStore.setState({ failureMode: 'off' })
     await userEvent.click(screen.getByRole('button', { name: 'Повторить' }))
     expect(await screen.findByText(/следующий шаг/i)).toBeInTheDocument()
+    expect(screen.getAllByText('Что дальше по плану?', { selector: '.msg__text' })).toHaveLength(1)
     expect(screen.getByRole('link', { name: 'Открыть таймлайн' })).toBeInTheDocument()
   })
 })

@@ -293,13 +293,1043 @@ paths:
         '401': *id001
         '403': *id004
         '503': *id002
+  /api/requests:
+    get:
+      operationId: listPortalRequests
+      responses:
+        '200':
+          description: Успех
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PortalTicket'
+        '401':
+          $ref: '#/components/responses/PortalUnauthorized'
+      parameters:
+      - name: scope
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - queue
+  /api/requests/{kind}:
+    post:
+      operationId: createPortalRequest
+      responses:
+        '201':
+          description: Успех
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalTicket'
+        '400':
+          $ref: '#/components/responses/PortalBadRequest'
+        '401':
+          $ref: '#/components/responses/PortalUnauthorized'
+        '403':
+          $ref: '#/components/responses/PortalForbidden'
+        '404':
+          $ref: '#/components/responses/PortalNotFound'
+        '409':
+          $ref: '#/components/responses/PortalConflict'
+      parameters:
+      - name: kind
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+          - leave
+          - access
+          - technical_support
+          - mentor_consultation
+          - learning_request
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          type: string
+      - $ref: '#/components/parameters/PortalCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PortalTicketInput'
+            examples:
+              demo:
+                externalValue: ./examples/portal-support.json
+  /api/requests/{requestId}/{operation}:
+    post:
+      operationId: mutatePortalRequest
+      responses:
+        '200':
+          description: Успех
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalTicket'
+        '400':
+          $ref: '#/components/responses/PortalBadRequest'
+        '401':
+          $ref: '#/components/responses/PortalUnauthorized'
+        '403':
+          $ref: '#/components/responses/PortalForbidden'
+        '404':
+          $ref: '#/components/responses/PortalNotFound'
+        '409':
+          $ref: '#/components/responses/PortalConflict'
+      parameters:
+      - name: X-Request-Version
+        in: header
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: operation
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+          - send
+          - approve
+          - reject
+          - edit
+          - claim
+          - resolve
+          - close
+          - reopen
+          - schedule
+          - propose
+          - accept
+          - counter
+          - complete
+          - recommend
+      - $ref: '#/components/parameters/PortalCsrf'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PortalTicketOperationInput'
+  /api/kb/search:
+    get:
+      operationId: searchPortalKnowledge
+      responses:
+        '200':
+          description: Успех
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PortalKnowledgeHit'
+        '400':
+          $ref: '#/components/responses/PortalBadRequest'
+        '401':
+          $ref: '#/components/responses/PortalUnauthorized'
+        '403':
+          $ref: '#/components/responses/PortalForbidden'
+        '404':
+          $ref: '#/components/responses/PortalNotFound'
+      parameters:
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: category
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: track
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: taskId
+        in: query
+        required: false
+        schema:
+          type: string
+  /api/adaptation/plan:
+    get:
+      operationId: getAdaptationPlan
+      responses:
+        '200':
+          description: Успех
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdaptationPlan'
+        '401':
+          $ref: '#/components/responses/PortalUnauthorized'
+  /api/adaptation/items/{itemId}/transition:
+    post:
+      operationId: transitionAdaptationItem
+      responses:
+        '200':
+          description: Успех
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdaptationPlan'
+        '400':
+          $ref: '#/components/responses/PortalBadRequest'
+        '401':
+          $ref: '#/components/responses/PortalUnauthorized'
+        '403':
+          $ref: '#/components/responses/PortalForbidden'
+        '404':
+          $ref: '#/components/responses/PortalNotFound'
+        '409':
+          $ref: '#/components/responses/PortalConflict'
+      parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/PortalCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                target:
+                  type: string
+                  enum:
+                  - in_progress
+                  - evidence_pending
+                  - completed
+                evidenceUri:
+                  type: string
+              required:
+              - target
+  /api/adaptation/first-task/{operation}:
+    post:
+      operationId: changeFirstTask
+      responses:
+        '200':
+          description: Успех
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/PortalOk'
+                - type: object
+                  properties:
+                    code:
+                      type: string
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    demo:
+                      type: boolean
+                  required:
+                  - code
+                  - title
+                  - description
+                  - demo
+        '400':
+          $ref: '#/components/responses/PortalBadRequest'
+        '401':
+          $ref: '#/components/responses/PortalUnauthorized'
+        '403':
+          $ref: '#/components/responses/PortalForbidden'
+        '404':
+          $ref: '#/components/responses/PortalNotFound'
+        '409':
+          $ref: '#/components/responses/PortalConflict'
+      parameters:
+      - name: operation
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+          - assign
+          - open
+          - start
+          - confirm
+      - $ref: '#/components/parameters/PortalCsrf'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+  /api/adaptation/metrics:
+    get:
+      operationId: getAdaptationMetrics
+      responses:
+        '200':
+          description: Успех
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalMetrics'
+        '401':
+          $ref: '#/components/responses/PortalUnauthorized'
+  /api/chat/config:
+    get:
+      operationId: getPortalChatConfig
+      responses:
+        '200':
+          description: Успех
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  aiMode:
+                    type: string
+                    enum:
+                    - demo
+                    - live
+                required:
+                - aiMode
+        '401':
+          $ref: '#/components/responses/PortalUnauthorized'
+  /api/chat:
+    post:
+      operationId: sendPortalChat
+      responses:
+        '200':
+          description: Успех
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalChatReply'
+        '400':
+          $ref: '#/components/responses/PortalBadRequest'
+        '401':
+          $ref: '#/components/responses/PortalUnauthorized'
+        '403':
+          $ref: '#/components/responses/PortalForbidden'
+        '404':
+          $ref: '#/components/responses/PortalNotFound'
+        '409':
+          $ref: '#/components/responses/PortalConflict'
+        '503':
+          $ref: '#/components/responses/PortalUnavailable'
+      parameters:
+      - $ref: '#/components/parameters/PortalCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PortalChatInput'
+            examples:
+              demo:
+                externalValue: ./examples/portal-chat.json
+  /api/chat/feedback:
+    post:
+      operationId: recordPortalChatFeedback
+      responses:
+        '200':
+          description: Успех
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalOk'
+        '400':
+          $ref: '#/components/responses/PortalBadRequest'
+        '401':
+          $ref: '#/components/responses/PortalUnauthorized'
+        '403':
+          $ref: '#/components/responses/PortalForbidden'
+        '404':
+          $ref: '#/components/responses/PortalNotFound'
+        '409':
+          $ref: '#/components/responses/PortalConflict'
+      parameters:
+      - $ref: '#/components/parameters/PortalCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                messageId:
+                  type: string
+                outcome:
+                  type: string
+                  enum:
+                  - resolved
+                  - mentor
+              required:
+              - messageId
+              - outcome
 components:
+  responses:
+    PortalBadRequest:
+      description: Проверьте данные
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PortalError'
+    PortalUnauthorized:
+      description: Истекла сессия
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PortalError'
+    PortalForbidden:
+      description: Операция недоступна
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PortalError'
+    PortalNotFound:
+      description: Ресурс недоступен
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PortalError'
+    PortalConflict:
+      description: Состояние изменилось
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PortalError'
+    PortalUnavailable:
+      description: Помощник временно недоступен
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PortalError'
+  parameters:
+    PortalCsrf:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema:
+        type: string
   securitySchemes:
     demoSession:
       type: apiKey
       in: cookie
       name: buddy_session
   schemas:
+    PortalError:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+      required:
+      - code
+      - message
+    PortalOk:
+      type: object
+      properties:
+        ok:
+          const: true
+      required:
+      - ok
+    PortalTicket:
+      type: object
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum:
+          - leave
+          - access
+          - technical_support
+          - mentor_consultation
+          - learning_request
+        status:
+          type: string
+          enum:
+          - draft
+          - sent
+          - approving
+          - approved
+          - rejected
+          - in_progress
+          - resolved
+          - closed
+          - awaiting_confirmation
+          - scheduled
+          - completed
+        authorId:
+          type: string
+        authorName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        payload:
+          oneOf:
+          - type: object
+            properties:
+              kind:
+                const: leave
+              startDate:
+                type: string
+                format: date
+              endDate:
+                type: string
+                format: date
+              reason:
+                type: string
+              comment:
+                type: string
+            required:
+            - kind
+          - type: object
+            properties:
+              kind:
+                const: access
+              system:
+                type: string
+              justification:
+                type: string
+              durationDays:
+                type: integer
+                minimum: 1
+                maximum: 365
+              taskId:
+                type: string
+            required:
+            - kind
+          - type: object
+            properties:
+              kind:
+                const: technical_support
+              category:
+                type: string
+                enum:
+                - environment
+                - software
+                - network
+                - git
+                - other
+              title:
+                type: string
+              description:
+                type: string
+              priority:
+                type: string
+                enum:
+                - low
+                - normal
+                - high
+              taskId:
+                type: string
+            required:
+            - kind
+          - type: object
+            properties:
+              kind:
+                const: mentor_consultation
+              topic:
+                type: string
+              description:
+                type: string
+              preferredAt:
+                type: string
+                format: date-time
+              taskId:
+                type: string
+            required:
+            - kind
+          - type: object
+            properties:
+              kind:
+                const: learning_request
+              topic:
+                type: string
+              track:
+                type: string
+                enum:
+                - backend
+                - analytics
+                - marketing
+              reason:
+                type: string
+              taskId:
+                type: string
+            required:
+            - kind
+        allowedActions:
+          type: array
+          items:
+            type: string
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              at:
+                type: string
+                format: date-time
+              status:
+                type: string
+              by:
+                type: string
+              comment:
+                type: string
+              scheduledAt:
+                type: string
+                format: date-time
+            required:
+            - at
+            - status
+            - by
+        assignee:
+          anyOf:
+          - type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+            required:
+            - id
+            - name
+          - type: 'null'
+        taskId:
+          anyOf:
+          - type: string
+          - type: 'null'
+        scheduledAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        proposedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        result:
+          anyOf:
+          - type: object
+            properties:
+              text:
+                type: string
+              url:
+                anyOf:
+                - type: string
+                - type: 'null'
+            required:
+            - text
+            - url
+          - type: 'null'
+      required:
+      - id
+      - kind
+      - status
+      - authorId
+      - payload
+      - history
+    PortalTicketInput:
+      type: object
+      properties:
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        reason:
+          type: string
+        comment:
+          type: string
+        system:
+          type: string
+        justification:
+          type: string
+        durationDays:
+          type: integer
+          minimum: 1
+          maximum: 365
+        taskId:
+          type: string
+        category:
+          type: string
+          enum:
+          - environment
+          - software
+          - network
+          - git
+          - other
+        title:
+          type: string
+        description:
+          type: string
+        priority:
+          type: string
+          enum:
+          - low
+          - normal
+          - high
+        topic:
+          type: string
+        preferredAt:
+          type: string
+          format: date-time
+        track:
+          type: string
+          enum:
+          - backend
+          - analytics
+          - marketing
+        saveDraft:
+          type: boolean
+    PortalTicketOperationInput:
+      type: object
+      properties:
+        category:
+          type: string
+          enum:
+          - environment
+          - software
+          - network
+          - git
+          - other
+        title:
+          type: string
+        description:
+          type: string
+        priority:
+          type: string
+          enum:
+          - low
+          - normal
+          - high
+        topic:
+          type: string
+        preferredAt:
+          type: string
+          format: date-time
+        track:
+          type: string
+          enum:
+          - backend
+          - analytics
+          - marketing
+        reason:
+          type: string
+        taskId:
+          type: string
+        at:
+          type: string
+          format: date-time
+        result:
+          type: string
+        comment:
+          type: string
+        url:
+          type: string
+          format: uri
+    AdaptationBlocker:
+      type: object
+      properties:
+        reason:
+          type: string
+        action:
+          type: string
+        itemId:
+          type: string
+        title:
+          type: string
+      required:
+      - reason
+      - action
+    AdaptationItem:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+        stage:
+          type: integer
+        stageLabel:
+          type: string
+        dependencies:
+          type: array
+          items:
+            type: string
+        requiredAccess:
+          type: array
+          items:
+            type: string
+        blockers:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdaptationBlocker'
+        origin:
+          type: string
+          enum:
+          - portal
+          - catalog
+          - assignment
+        requests:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              kind:
+                type: string
+                enum:
+                - leave
+                - access
+                - technical_support
+                - mentor_consultation
+                - learning_request
+              status:
+                type: string
+                enum:
+                - draft
+                - sent
+                - approving
+                - approved
+                - rejected
+                - in_progress
+                - resolved
+                - closed
+                - awaiting_confirmation
+                - scheduled
+                - completed
+      required:
+      - id
+      - title
+      - status
+      - stage
+      - blockers
+    AdaptationPlan:
+      type: object
+      properties:
+        track:
+          type: string
+          enum:
+          - backend
+          - analytics
+          - marketing
+        stage:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdaptationItem'
+        blockers:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdaptationBlocker'
+        quickStart:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              done:
+                type: boolean
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdaptationItem'
+            required:
+            - id
+            - title
+            - done
+            - items
+        nextStep:
+          anyOf:
+          - $ref: '#/components/schemas/AdaptationItem'
+          - type: 'null'
+        firstTask:
+          anyOf:
+          - type: object
+            properties:
+              code:
+                type: string
+              opened:
+                type: boolean
+              reported:
+                type: boolean
+              confirmed:
+                type: boolean
+          - type: 'null'
+      required:
+      - track
+      - stage
+      - items
+      - blockers
+      - quickStart
+      - nextStep
+      - firstTask
+    PortalKnowledgeHit:
+      type: object
+      properties:
+        chunkId:
+          type: string
+        docId:
+          type: string
+        title:
+          type: string
+        section:
+          type: string
+        snippet:
+          type: string
+        url:
+          anyOf:
+          - type: string
+          - type: 'null'
+        sourceType:
+          type: string
+        sourceStatus:
+          type: string
+        sourceLocator:
+          anyOf:
+          - type: string
+          - type: 'null'
+        synthetic:
+          type: boolean
+        estimatedMinutes:
+          anyOf:
+          - type: integer
+          - type: 'null'
+        difficulty:
+          anyOf:
+          - type: string
+          - type: 'null'
+      required:
+      - chunkId
+      - title
+      - sourceType
+      - sourceStatus
+      - synthetic
+    PortalChatInput:
+      type: object
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        taskId:
+          type: string
+        messageId:
+          type: string
+          pattern: ^[A-Za-z0-9._-]{8,80}$
+      required:
+      - message
+    PortalChatReply:
+      type: object
+      properties:
+        intentId:
+          type: string
+        text:
+          type: string
+        actions:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              label:
+                type: string
+              kind:
+                type: string
+                enum:
+                - navigate
+                - contact
+              target:
+                anyOf:
+                - type: string
+                - type: 'null'
+            required:
+            - id
+            - label
+            - kind
+            - target
+        aiMode:
+          type: string
+          enum:
+          - demo
+          - live
+        answerMethod:
+          type: string
+          enum:
+          - rules
+          - model
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortalKnowledgeHit'
+        messageId:
+          type: string
+      required:
+      - intentId
+      - text
+      - actions
+    PortalMetrics:
+      type: object
+      properties:
+        origin:
+          const: measured
+        firstTaskMinutes:
+          $ref: '#/components/schemas/PortalMetricSample'
+        blockerMinutes:
+          $ref: '#/components/schemas/PortalMetricSample'
+        requestMinutes:
+          $ref: '#/components/schemas/PortalMetricSample'
+        withoutMentor:
+          $ref: '#/components/schemas/PortalMetricSample'
+        quickStart:
+          $ref: '#/components/schemas/PortalMetricSample'
+        manualActionsAvoided:
+          $ref: '#/components/schemas/PortalMetricSample'
+      required:
+      - origin
+    PortalMetricSample:
+      type: object
+      properties:
+        value:
+          type:
+          - number
+          - 'null'
+        sampleSize:
+          type: integer
+          minimum: 0
+      required:
+      - value
+      - sampleSize
     Task:
       type: object
       required:

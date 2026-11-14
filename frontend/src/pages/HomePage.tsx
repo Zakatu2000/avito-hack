@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom'
+import { useAdaptationPlan } from '../api/adaptation'
+import { isMockMode } from '../api/auth'
 import { useChecklist, useMe, useRequests } from '../api/hooks'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -19,17 +21,26 @@ export function HomePage() {
   const me = useMe()
   const checklist = useChecklist()
   const requests = useRequests()
+  const plan = useAdaptationPlan()
 
-  if (me.isLoading || checklist.isLoading) return <div className="page"><SkeletonCard lines={4} /><SkeletonCard lines={2} /></div>
+  if (me.isLoading || checklist.isLoading || (!isMockMode && plan.isPending)) return <div className="page"><SkeletonCard lines={4} /><SkeletonCard lines={2} /></div>
   if (checklist.isError || !checklist.data) {
     return <ErrorState onRetry={() => void checklist.refetch()} retryLoading={checklist.isRefetching} />
+  }
+
+  if (!isMockMode && plan.isError) {
+    return <ErrorState onRetry={() => void plan.refetch()} retryLoading={plan.isRefetching} />
   }
 
   const user = me.data
   const items = checklist.data.flatMap((stage) => stage.items)
   const done = items.filter((i) => i.status === 'done').length
   const percent = items.length ? Math.round((done / items.length) * 100) : 0
-  const next = items.find((i) => i.status !== 'done')
+  const next = isMockMode ? items.find((i) => i.status !== 'done') : plan.data?.nextStep
+  const quick = plan.data?.quickStart
+  const summaryDone = quick ? quick.filter((group) => group.done).length : done
+  const summaryTotal = quick?.length ?? items.length
+  const summaryPercent = quick ? Math.round(summaryDone / summaryTotal * 100) : percent
   const deadlines = items.filter((i) => i.status !== 'done' && i.deadline).slice(0, 4)
   const isApprover = user?.role === 'mentor' || user?.role === 'lead'
   const queue = (requests.data ?? []).filter((r) => r.status === 'sent' || r.status === 'approving')
@@ -53,10 +64,10 @@ export function HomePage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
           <h2 className="heading-s">Прогресс адаптации</h2>
           <span className="caption" style={{ fontWeight: 700 }}>
-            {done} из {items.length} пунктов · {percent}%
+            {summaryDone} из {summaryTotal} пунктов · {summaryPercent}%
           </span>
         </div>
-        <ProgressBar value={percent} label="Прогресс адаптации" />
+        <ProgressBar value={summaryPercent} label="Прогресс адаптации" />
       </Card>
 
       {isApprover ? (
@@ -72,7 +83,7 @@ export function HomePage() {
           </Link>
         </Card>
       ) : (
-        next && (
+        next ? (
           <Card tone="purple">
             <span className="caption" style={{ fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               Следующий шаг
@@ -92,7 +103,11 @@ export function HomePage() {
               </Link>
             </div>
           </Card>
-        )
+        ) : plan.data?.blockers.length ? (
+          <Card tone="purple"><h2 className="heading-s">Что мешает начать работу</h2>
+            <p>{plan.data.blockers[0].reason}</p><Link to={plan.data.blockers[0].action}>Что сделать</Link>
+          </Card>
+        ) : null
       )}
 
       <section aria-label="Дедлайны" className="stack">

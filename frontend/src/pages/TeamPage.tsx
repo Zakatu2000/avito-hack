@@ -1,3 +1,4 @@
+import { useFirstTask } from '../api/adaptation'
 import { useState } from 'react'
 import { ApiError, getErrorMessage } from '../api/client'
 import { useApproveChecklistItem, useInterns, usePendingItems } from '../api/hooks'
@@ -61,6 +62,7 @@ function PendingItemsSection() {
 
 export function TeamPage() {
   const interns = useInterns()
+  const firstTask = useFirstTask()
 
   return (
     <div className="page">
@@ -91,7 +93,7 @@ export function TeamPage() {
           <section aria-label="Стажёры" className="stack">
             <h2 className="section-title">Стажёры</h2>
             <div className="grid-2">
-              {interns.data.map(({ user, progress, nextStepTitle }) => (
+              {interns.data.map(({ user, progress, nextStepTitle, firstTaskStatus }) => (
                 <Card key={user.id}>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
                     <span
@@ -118,6 +120,13 @@ export function TeamPage() {
                   <p className="caption" style={{ marginTop: 8 }}>
                     {progress.done}/{progress.total} пунктов · дальше: {nextStepTitle ?? 'всё готово 🎉'}
                   </p>
+                  {(firstTaskStatus === 'unassigned' || firstTaskStatus === 'reported') &&
+                    <Button size="s" loading={firstTask.isPending && firstTask.variables?.userId === user.id} onClick={() =>
+                      firstTask.mutate({ userId: user.id, operation: firstTaskStatus === 'unassigned' ? 'assign' : 'confirm' },
+                        { onError: (err) => toast(getErrorMessage(err), 'error') })
+                    }>{firstTaskStatus === 'unassigned' ? 'Назначить учебную задачу' : 'Подтвердить старт'}</Button>}
+                  {firstTaskStatus === 'assigned' && <p className="caption">Учебная задача назначена</p>}
+                  {firstTaskStatus === 'confirmed' && <p className="caption">Самостоятельный старт подтверждён</p>}
                 </Card>
               ))}
             </div>

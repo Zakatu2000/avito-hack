@@ -5,6 +5,7 @@
   "documents": [
     {
       "id": "xlsx-checklist",
+      "sourceLocator": "Сохранённый чек-лист Авито · xlsx_snapshot.json",
       "title": "Чек-лист стажёра Авито (XLSX)",
       "sourceType": "normative",
       "url": null,
@@ -90,6 +91,7 @@
     },
     {
       "id": "hackathon-case",
+      "sourceLocator": "Кейс Hack&Change 2026 · hackathon_case.pdf",
       "title": "Кейс Hack&Change 2026 «AI-buddy для стажёров» (PDF)",
       "sourceType": "normative",
       "url": null,
@@ -127,6 +129,8 @@
     },
     {
       "id": "gemini-report",
+      "synthetic": true,
+      "sourceLocator": "Синтетический учебный отчёт",
       "title": "Отчёт Gemini: системный проект AI-Buddy (DOCX)",
       "sourceType": "normative",
       "url": null,
@@ -427,6 +431,8 @@
     },
     {
       "id": "oop-course",
+      "synthetic": true,
+      "sourceLocator": "Учебная реконструкция команды",
       "title": "Курс ООП (C#): восемь учебных модулей",
       "sourceType": "educational",
       "url": null,
@@ -522,6 +528,45 @@
           "quote": "website is inaccessible",
           "topics": ["соседское соглашение", "офис", "этикет"],
           "checklistRefs": []
+        }
+      ]
+    },
+    {
+      "id": "portal-environment-demo",
+      "title": "Учебная диагностика окружения",
+      "sourceType": "educational",
+      "sourceStatus": "reconstructed",
+      "url": null,
+      "version": "1",
+      "freshness": null,
+      "tracks": [
+        "common"
+      ],
+      "roles": [
+        "all"
+      ],
+      "governance": "Синтетический гайд для демо",
+      "sourceLocator": "Документация проекта Hack&Change",
+      "synthetic": true,
+      "chunks": [
+        {
+          "id": "portal-environment-start",
+          "title": "Локальное окружение не запускается",
+          "text": "Проверь версию инструмента в README учебного проекта и запусти установку зависимостей из его корня. При сбое запиши команду и обезличенный текст ошибки. Убери ключи и токены перед отправкой обращения.",
+          "quote": "Проверь версию инструмента в README учебного проекта.",
+          "topics": [
+            "окружение",
+            "ошибка",
+            "VPN",
+            "запуск",
+            "Git"
+          ],
+          "checklistRefs": [
+            "wk2-env",
+            "backend-11"
+          ],
+          "difficulty": "introductory",
+          "estimatedMinutes": 10
         }
       ]
     }

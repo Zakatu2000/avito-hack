@@ -421,6 +421,7 @@
     },
     {
       "id": "backend-02",
+      "priority": 40,
       "track": "backend",
       "title": "Изучи микросервисную архитектура в Авито",
       "originalText": "Изучи микросервисную архитектура в Авито\n 1. Пройди курс «Микросервисная архитектура в Авито»",
@@ -619,6 +620,8 @@
     },
     {
       "id": "backend-11",
+      "priority": 25,
+      "estimatedMinutes": 20,
       "track": "backend",
       "title": "Настрой avito-cli",
       "originalText": "Настрой avito-cli",
@@ -641,6 +644,8 @@
     },
     {
       "id": "backend-12",
+      "priority": 30,
+      "requiredAccess": ["repo"],
       "track": "backend",
       "title": "Добавь ключи в stash",
       "originalText": "Добавь ключи в stash",

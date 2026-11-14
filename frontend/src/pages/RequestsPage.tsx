@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { isMockMode } from '../api/auth'
 import { getErrorMessage } from '../api/client'
 import {
   useApproveRequest,
@@ -9,6 +10,7 @@ import {
   useSendRequest,
 } from '../api/hooks'
 import type { Request as BuddyRequest } from '../api/schemas'
+import { PortalRequestActions } from '../components/PortalRequestActions'
 import { Button } from '../components/ui/Button'
 import { EmptyState } from '../components/ui/EmptyState'
 import { ListItem } from '../components/ui/ListItem'
@@ -18,7 +20,24 @@ import { ErrorState } from '../components/ui/States'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { toast } from '../components/ui/Toast'
 import { Textarea } from '../components/ui/Input'
-import { requestStatusBadgeLabel, requestSubtitle, requestTitle } from '../utils/requestView'
+import { NEW_REQUEST_LABELS, requestStatusBadgeLabel, requestSubtitle, requestTitle } from '../utils/requestView'
+
+function formatTime(value: string) {
+  return new Date(value).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+function TicketDetails({ request }: { request: BuddyRequest }) {
+  const preferred = request.payload.kind === 'mentor_consultation' ? request.payload.preferredAt : undefined
+  return <>
+    {request.assignee && <p>Ответственный: {request.assignee.name}</p>}
+    {preferred && <p>Предпочтительное время: {formatTime(preferred)}</p>}
+    {request.proposedAt && <p>Предложенное время: {formatTime(request.proposedAt)}</p>}
+    {request.scheduledAt && <p>Согласованное время: {formatTime(request.scheduledAt)} · демо</p>}
+    {request.taskId && <Link to={'/timeline#' + request.taskId}>Связанный пункт адаптации</Link>}
+    {request.result && <div><p>{request.result.text}</p>{request.result.url?.startsWith('https://') &&
+      <a href={request.result.url} target="_blank" rel="noreferrer">Ссылка от наставника</a>}</div>}
+  </>
+}
 
 function History({ request }: { request: BuddyRequest }) {
   return (
@@ -28,6 +47,7 @@ function History({ request }: { request: BuddyRequest }) {
           <strong>{entry.status}</strong>
           <span>· {entry.by}</span>
           <span>· {new Date(entry.at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })}</span>
+          {entry.scheduledAt && <span>· {formatTime(entry.scheduledAt)}</span>}
           {entry.comment && <span>· «{entry.comment}»</span>}
         </div>
       ))}
@@ -59,10 +79,17 @@ function QueueSection() {
       {items.length === 0 && (
         <EmptyState icon="✅" title="Очередь пуста" hint="Новых запросов от стажёров нет" />
       )}
-      {items.map((request) => (
+      {items.map((request) => request.allowedActions ? (
+        <div key={request.id} className="stack">
+          <ListItem icon="📋" title={request.authorName + ': ' + requestTitle(request)} subtitle={requestSubtitle(request)}
+            right={<StatusBadge status={request.status} />} />
+          <TicketDetails request={request} />
+          <PortalRequestActions request={request} />
+        </div>
+      ) : (
         <div key={request.id} className="stack">
           <ListItem
-            icon={request.kind === 'leave' ? '🏖' : '🔑'}
+            icon={request.kind === 'leave' ? '🏖' : request.kind === 'access' ? '🔑' : '📋'}
             title={`${request.authorName}: ${requestTitle(request)}`}
             subtitle={requestSubtitle(request)}
             right={
@@ -134,6 +161,7 @@ export function RequestsPage() {
   const requests = useRequests()
   const sendRequest = useSendRequest()
   const navigate = useNavigate()
+  const { hash } = useLocation()
   const isApprover = me.data?.role === 'mentor' || me.data?.role === 'lead'
 
   if (requests.isLoading) {
@@ -156,7 +184,7 @@ export function RequestsPage() {
         <div>
           <h1 className="heading-l">{isApprover ? 'Все запросы' : 'Мои запросы'}</h1>
           <p className="body-secondary" style={{ marginTop: 4 }}>
-            Отгулы и доступы со статусами и историей
+            Запросы, статусы и история решений
           </p>
         </div>
         <div className="page__actions">
@@ -164,6 +192,9 @@ export function RequestsPage() {
           <Button variant="secondary" onClick={() => navigate('/requests/new/access')}>
             Запросить доступ
           </Button>
+          {!isMockMode && !isApprover && Object.entries(NEW_REQUEST_LABELS).map(([kind, label]) => (
+            <Link key={kind} className="btn btn--secondary" to={'/requests/new/' + kind}>{label}</Link>
+          ))}
         </div>
       </div>
 
@@ -183,10 +214,10 @@ export function RequestsPage() {
           />
         )}
         {sorted.map((request) => (
-          <details key={request.id} className="list-item" style={{ display: 'block', cursor: 'pointer' }}>
+          <details key={request.id} id={request.id} open={hash === '#' + request.id ? true : undefined} className="list-item" style={{ display: 'block', cursor: 'pointer' }}>
             <summary style={{ display: 'flex', alignItems: 'center', gap: 16, listStyle: 'none' }} aria-label={`Запрос: ${requestTitle(request)}`}>
               <span className="list-item__icon" aria-hidden="true">
-                {request.kind === 'leave' ? '🏖' : '🔑'}
+                {request.kind === 'leave' ? '🏖' : request.kind === 'access' ? '🔑' : '📋'}
               </span>
               <span className="list-item__body">
                 <span className="list-item__title">
@@ -194,11 +225,11 @@ export function RequestsPage() {
                   {requestTitle(request)}
                 </span>
                 <span className="list-item__subtitle">
-                  Согласуют: {request.approvers.join(', ')}
+                  {request.allowedActions ? (request.assignee?.name ?? 'Портал') : 'Согласуют: ' + request.approvers.join(', ')}
                 </span>
               </span>
               <span className="list-item__right">
-                {request.status === 'draft' && (
+                {request.status === 'draft' && !request.allowedActions && (
                   <Button
                     size="s"
                     loading={sendRequest.isPending && sendRequest.variables === request.id}
@@ -218,7 +249,9 @@ export function RequestsPage() {
             </summary>
             <div style={{ marginTop: 12 }} className="stack">
               <p className="caption">{requestSubtitle(request)}</p>
+              <TicketDetails request={request} />
               <History request={request} />
+              {request.allowedActions && (!isApprover || request.status === 'draft') && <PortalRequestActions request={request} />}
             </div>
           </details>
         ))}

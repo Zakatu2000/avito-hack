@@ -162,3 +162,28 @@ def test_login_throttling(app, db):
     assert client.post("/api/auth/login", json=data).status_code == 429
     db.execute("DELETE FROM portal_auth_limits")
     db.commit()
+
+def test_directory_returns_only_contacts_from_the_signed_in_team(app, db):
+    assert app.test_client().get("/api/contacts").status_code == 401
+    local_email = f"{uuid4().hex}@example.test"
+    foreign_email = f"{uuid4().hex}@example.test"
+    local = create_account(db, local_email, PASSWORD, "Наставник каталога", "mentor")
+    lead = create_account(db, f"{uuid4().hex}@example.test", PASSWORD, "Руководитель каталога", "lead")
+    foreign = create_account(db, foreign_email, PASSWORD, "Наставник другой команды", "mentor")
+    db.execute("UPDATE portal_accounts SET team=%s WHERE user_id=%s", ("Other Team", foreign["user_id"]))
+    db.commit()
+
+    client = app.test_client()
+    intern, _ = register(client)
+    result = client.get("/api/contacts")
+    assert result.status_code == 200
+    entries = {entry["id"]: entry for entry in result.get_json()}
+    assert {local["user_id"], lead["user_id"], "c-hr", "c-curator"} <= entries.keys()
+    assert foreign["user_id"] not in entries
+    assert intern["id"] not in entries
+    assert local_email not in result.get_data(as_text=True)
+    assert foreign_email not in result.get_data(as_text=True)
+    assert entries[local["user_id"]]["roleKey"] == "mentor"
+    assert entries[lead["user_id"]]["source"] == "team"
+    assert entries["c-hr"]["source"] == "demo"
+    assert all(not entry["responseTime"] for entry in entries.values())

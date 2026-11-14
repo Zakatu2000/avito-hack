@@ -26,7 +26,10 @@ export function useUpdateItemStatus() {
   return useMutation({
     mutationFn: ({ itemId, status }: { itemId: string; status: ItemStatus }) =>
       service.updateItemStatus(itemId, status),
-    onSuccess: (checklist) => qc.setQueryData(['checklist', useAuthStore.getState().userId], checklist),
+    onSuccess: (checklist) => {
+      qc.setQueryData(['checklist', useAuthStore.getState().userId], checklist)
+      void qc.invalidateQueries({ queryKey: ['adaptation'] })
+    },
   })
 }
 
@@ -42,6 +45,7 @@ export function useRequests(scope?: 'queue') {
 function useInvalidateRequests() {
   const qc = useQueryClient()
   return () => {
+    void qc.invalidateQueries({ queryKey: ['adaptation'] })
     void qc.invalidateQueries({ queryKey: ['requests'] })
     void qc.invalidateQueries({ queryKey: ['interns'] })
   }
@@ -51,7 +55,7 @@ export function useCreateLeaveRequest() {
   const invalidate = useInvalidateRequests()
   return useMutation({
     mutationFn: (input: LeaveRequestInput) => service.createLeaveRequest(input),
-    onSuccess: invalidate,
+    onSettled: invalidate,
   })
 }
 
@@ -59,7 +63,7 @@ export function useCreateAccessRequest() {
   const invalidate = useInvalidateRequests()
   return useMutation({
     mutationFn: (input: AccessRequestInput) => service.requestAccess(input),
-    onSuccess: invalidate,
+    onSettled: invalidate,
   })
 }
 
@@ -67,7 +71,7 @@ export function useApproveRequest() {
   const invalidate = useInvalidateRequests()
   return useMutation({
     mutationFn: (id: string) => service.approveRequest(id),
-    onSuccess: invalidate,
+    onSettled: invalidate,
   })
 }
 
@@ -76,7 +80,7 @@ export function useRejectRequest() {
   return useMutation({
     mutationFn: ({ id, comment }: { id: string; comment?: string }) =>
       service.rejectRequest(id, comment),
-    onSuccess: invalidate,
+    onSettled: invalidate,
   })
 }
 
@@ -84,7 +88,7 @@ export function useSendRequest() {
   const invalidate = useInvalidateRequests()
   return useMutation({
     mutationFn: (id: string) => service.sendRequest(id),
-    onSuccess: invalidate,
+    onSettled: invalidate,
   })
 }
 
@@ -139,6 +143,7 @@ export function useApproveChecklistItem() {
       qc.setQueryData(['pending-items'], pending)
       void qc.invalidateQueries({ queryKey: ['interns'] })
       void qc.invalidateQueries({ queryKey: ['checklist'] })
+      void qc.invalidateQueries({ queryKey: ['adaptation'] })
     },
   })
 }

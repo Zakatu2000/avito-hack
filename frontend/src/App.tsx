@@ -18,6 +18,7 @@ import { KbPage } from './pages/KbPage'
 import { LeaveFormPage } from './pages/LeaveFormPage'
 import { LoginPage } from './pages/LoginPage'
 import { MetricsPage } from './pages/MetricsPage'
+import { PortalRequestForm } from './pages/PortalRequestForm'
 import { RequestsPage } from './pages/RequestsPage'
 import { TeamPage } from './pages/TeamPage'
 import { TimelinePage } from './pages/TimelinePage'
@@ -83,6 +84,8 @@ export function App() {
             <Route path="/requests" element={<RequestsPage />} />
             <Route path="/requests/new/leave" element={<LeaveFormPage />} />
             <Route path="/requests/new/access" element={<AccessFormPage />} />
+            <Route path="/requests/new/:kind" element={<PortalRequestForm />} />
+            <Route path="/requests/:requestId/edit" element={<PortalRequestForm />} />
             <Route path="/contacts" element={<ContactsPage />} />
             <Route path="/kb" element={<KbPage />} />
             <Route path="/team" element={<TeamPage />} />

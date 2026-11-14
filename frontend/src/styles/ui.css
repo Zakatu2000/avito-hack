@@ -1297,3 +1297,66 @@ select.field__control {
 .login-user__role {
   margin-left: auto;
 }
+
+/* Portal plan and conversation */
+.chat-page .chat {
+  --chat-padding: var(--space-4);
+  width: 100%;
+  max-width: 920px;
+  height: clamp(28rem, calc(100dvh - 13rem), 48rem);
+  padding: var(--chat-padding);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+}
+
+.chat-page .chat__log {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.chat-page .msg {
+  flex: 0 0 auto;
+  max-width: min(85%, 42rem);
+  overflow-wrap: anywhere;
+}
+
+.msg__text { white-space: pre-wrap; }
+.chat-sources { padding-inline-start: 1.2em; margin-block: 0.5em; }
+.chat-page .chat__suggestions { gap: var(--space-2); }
+.chat-page .chat__context { align-items: center; font-size: 0.875rem; }
+
+.chat-page .chat__form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.chat-page .chat__form textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 3.75rem;
+  max-height: calc(6 * 1.4em + 1.5rem);
+  line-height: 1.4;
+  resize: none;
+  overflow-y: auto;
+}
+
+.quick-start { list-style: decimal; padding-inline-start: 1.5rem; }
+.quick-start > li, .plan-stage { margin-block-start: var(--space-4); }
+.plan-item { padding-block: var(--space-3); border-bottom: 1px solid var(--surface-border); }
+.plan-item .page__actions { align-items: center; }
+.plan-blockers { padding-inline-start: 1.25rem; }
+.plan-blockers > li + li { margin-block-start: var(--space-2); }
+.plan-stage summary, details.card > summary { cursor: pointer; }
+
+@media (max-width: 560px) {
+  .chat-page .chat { --chat-padding: var(--space-3); height: clamp(22rem, calc(100dvh - 12rem), 42rem); }
+  .chat-page .chat__suggestions { flex-wrap: nowrap; overflow-x: auto; padding-block-end: var(--space-1); }
+  .chat-page .chat__suggestions > * { flex: 0 0 auto; }
+  .chat-page .msg { max-width: 94%; }
+}

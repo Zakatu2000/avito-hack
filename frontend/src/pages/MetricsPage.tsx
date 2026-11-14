@@ -1,9 +1,43 @@
+import { useAdaptationMetrics } from '../api/adaptation'
+import { isMockMode } from '../api/auth'
 import { useMetrics } from '../api/hooks'
 import { Card } from '../components/ui/Card'
 import { SkeletonCard } from '../components/ui/Skeleton'
 import { ErrorState } from '../components/ui/States'
 
+const METRICS = [
+  ['firstTaskMinutes', 'Время до подтверждённого старта', 'мин'],
+  ['blockerMinutes', 'Время до снятия блокировки', 'мин'],
+  ['requestMinutes', 'Время от отправки заявки до результата', 'мин'],
+  ['withoutMentor', 'Вопросы, решённые без наставника', '%'],
+  ['quickStart', 'Прогресс быстрого старта', '%'],
+  ['manualActionsAvoided', 'Автоматически выполненные ручные действия', ''],
+] as const
+
+function PortalMetricsPage() {
+  const metrics = useAdaptationMetrics()
+  if (metrics.isPending) return <div className="page"><SkeletonCard lines={5} /></div>
+  if (!metrics.data) return <ErrorState onRetry={() => void metrics.refetch()} retryLoading={metrics.isRefetching} />
+  const data = metrics.data
+  return <div className="page">
+    <h1 className="heading-l">Метрики адаптации</h1>
+    <p className="body-secondary">Измерения по событиям этой среды</p>
+    <div className="grid-2">{METRICS.map(([key, label, unit]) => {
+      const { value, sampleSize } = data[key]
+      return <Card key={key}><h2 className="heading-s">{label}</h2>
+        <p className="metric__value">{value === null ? 'Недостаточно данных' :
+          (unit === '%' ? Math.round(value * 100) : value) + (unit ? ' ' + unit : '')}</p>
+        {sampleSize > 0 && <p className="caption">Наблюдений: {sampleSize}</p>}
+      </Card>
+    })}</div>
+  </div>
+}
+
 export function MetricsPage() {
+  return isMockMode ? <MockMetricsPage /> : <PortalMetricsPage />
+}
+
+function MockMetricsPage() {
   const metrics = useMetrics()
 
   if (metrics.isLoading) {

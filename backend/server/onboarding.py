@@ -60,7 +60,7 @@ def item_visibility(item, profile):
 
 def _state_map(cur, user_id):
     rows = cur.execute(
-        "SELECT item_id, status, evidence_uri, note, updated_at "
+        "SELECT item_id, status, evidence_uri, note, updated_at, started_at, completed_at "
         "FROM checklist_state WHERE user_id = %s", (user_id,)).fetchall()
     return {r["item_id"]: r for r in rows}
 
@@ -111,6 +111,10 @@ def decorate_item(item, state, states, profile):
         "evidenceUri": state["evidence_uri"] if state else None,
         "note": state["note"] if state else "",
         "sourceRef": item["source_ref"],
+        "dependencies": item["prerequisites"], "requiredAccess": item["required_access"],
+        "priority": item["priority"], "estimatedMinutes": item["estimated_minutes"],
+        "startedAt": state["started_at"].isoformat() if state and state["started_at"] else None,
+        "completedAt": state["completed_at"].isoformat() if state and state["completed_at"] else None,
     }
 
 
@@ -152,6 +156,22 @@ def transition(cur, user_id, profile, item_id, target, *, evidence_uri=None, not
         (item_id, profile["track"])).fetchone()
     if item is None:
         return None, ("not_found", "Пункт чек-листа не найден")
+    # Portal users can also reach the legacy Buddy endpoint. Share the
+    # portal lock and its blockers at the common transition boundary.
+    account = cur.execute("SELECT user_id FROM portal_accounts WHERE user_id=%s FOR UPDATE", (user_id,)).fetchone()
+    if account and target in ("in_progress", "evidence_pending", "completed"):
+        if item["required_access"]:
+            grants = cur.execute(
+                "SELECT DISTINCT system FROM portal_grants WHERE user_id=%s AND expires_at>now()", (user_id,),
+            ).fetchall()
+            if not set(item["required_access"]) <= {row["system"] for row in grants}:
+                return None, ("conflict", "Для пункта требуется действующий доступ")
+        blocker = cur.execute(
+            "SELECT 1 FROM portal_requests WHERE user_id=%s AND task_id=%s AND data->>'kind'='technical_support' "
+            "AND status IN ('sent','in_progress','resolved')", (user_id, item_id),
+        ).fetchone()
+        if blocker:
+            return None, ("conflict", "Техническое обращение ожидает закрытия")
     states = _state_map(cur, user_id)
     current = states.get(item_id, {}).get("status", "available")
     if current == "available" and _prereq_blockers(item, states):
@@ -179,13 +199,16 @@ def transition(cur, user_id, profile, item_id, target, *, evidence_uri=None, not
             if not ok:
                 return None, ("conflict", "Пункт подтверждается куратором")
     cur.execute(
-        "INSERT INTO checklist_state (user_id, item_id, status, evidence_uri, note) "
-        "VALUES (%s, %s, %s, %s, %s) "
+        "INSERT INTO checklist_state (user_id, item_id, status, evidence_uri, note, started_at, completed_at) "
+        "VALUES (%s, %s, %s, %s, %s, CASE WHEN %s='in_progress' THEN now() END, "
+        "CASE WHEN %s='completed' THEN now() END) "
         "ON CONFLICT (user_id, item_id) DO UPDATE "
         "SET status = EXCLUDED.status, "
         "    evidence_uri = COALESCE(EXCLUDED.evidence_uri, checklist_state.evidence_uri), "
-        "    note = EXCLUDED.note, updated_at = now()",
-        (user_id, item_id, target, evidence_uri, note))
+        "    note = EXCLUDED.note, updated_at = now(), "
+        "    started_at = COALESCE(checklist_state.started_at, EXCLUDED.started_at), "
+        "    completed_at = COALESCE(checklist_state.completed_at, EXCLUDED.completed_at)",
+        (user_id, item_id, target, evidence_uri, note, target, target))
     if target == "completed" and evidence_uri:
         cur.execute(
             "INSERT INTO learning_records (user_id, item_id, kind, payload) "

@@ -6,8 +6,9 @@ from pathlib import Path
 
 from flask import Blueprint, g, jsonify, request
 
-from ai.buddy_intents import classify
-from server import knowledge, onboarding, orchestrator
+from server import knowledge, onboarding
+from server import portal_adaptation as adaptation
+from server import portal_chat, portal_requests
 from server.portal_auth import current_account, public_user
 
 FIXTURES = Path(__file__).with_name("portal_fixtures")
@@ -23,12 +24,16 @@ class PortalError(Exception):
 
 
 def checklist(conn, user_id):
-    states = {r["item_id"]: r["status"] for r in conn.execute(
-        "SELECT item_id,status FROM portal_progress WHERE user_id=%s", (user_id,))}
+    states = {r["item_id"]: r for r in conn.execute(
+        "SELECT item_id,status,started_at,completed_at FROM portal_progress WHERE user_id=%s", (user_id,))}
     stages = fixture("checklist")
     for stage in stages:
         for item in stage["items"]:
-            item["status"] = states.get(item["id"], "not_started")
+            state = states.get(item["id"])
+            item["status"] = state["status"] if state else "not_started"
+            for source, target in (("started_at", "startedAt"), ("completed_at", "completedAt")):
+                if state and state[source]:
+                    item[target] = state[source].isoformat()
     return stages
 
 
@@ -69,7 +74,7 @@ def body():
 
 def validate_payload(kind, data):
     fields = {"startDate", "endDate", "reason", "comment", "saveDraft"} if kind == "leave" else {
-        "system", "justification", "durationDays", "saveDraft"}
+        "system", "justification", "durationDays", "saveDraft", "taskId"}
     if not set(data) <= fields or ("saveDraft" in data and type(data["saveDraft"]) is not bool):
         raise PortalError(400, "Некорректные поля формы")
     if kind == "leave":
@@ -105,6 +110,23 @@ def portal_blueprint(connect, ai_mode="demo", llm=None, llm_slots=None, llm_wait
     def invalid(exc):
         return jsonify(code=exc.code, message=exc.message), exc.status
 
+    @bp.errorhandler(portal_requests.RequestError)
+    def request_error(exc):
+        return invalid(PortalError(exc.status, str(exc), {
+            403: "FORBIDDEN", 404: "NOT_FOUND", 409: "CONFLICT",
+        }.get(exc.status, "BAD_REQUEST")))
+
+    @bp.errorhandler(adaptation.AdaptationConflict)
+    def adaptation_error(exc):
+        return invalid(PortalError(409, str(exc), "CONFLICT"))
+
+    def current_plan(conn, account=None):
+        account = account or g.account
+        return adaptation.plan(conn, account, checklist(conn, account["user_id"]))
+
+    def visible_tasks(conn):
+        return {x["id"] for x in current_plan(conn)["items"]}
+
     @bp.get("/api/me")
     def me():
         return jsonify(public_user(g.account))
@@ -137,8 +159,22 @@ def portal_blueprint(connect, ai_mode="demo", llm=None, llm_slots=None, llm_wait
                        "pending_approval": [], "done": []}
             if data["status"] not in allowed[item["status"]]:
                 raise PortalError(403, "Этот переход недоступен. Дождитесь подтверждения наставника", "FORBIDDEN")
-            conn.execute("INSERT INTO portal_progress VALUES (%s,%s,%s) ON CONFLICT(user_id,item_id) DO UPDATE SET status=EXCLUDED.status",
-                         (g.account["user_id"], item_id, data["status"]))
+            if item_id in (adaptation.ACCESS_ITEM, "wk2-env", "wk2-first-task", "m2-solo"):
+                step = next(i for i in current_plan(conn)["items"] if i["id"] == item_id)
+                blockers = step["blockers"]
+                if blockers or item_id == adaptation.ACCESS_ITEM and data["status"] == "done":
+                    raise PortalError(409, blockers[0]["reason"] if blockers else "Пункт завершается после выдачи доступов", "CONFLICT")
+            conn.execute(
+                """INSERT INTO portal_progress(user_id,item_id,status,started_at,completed_at)
+                   VALUES (%s,%s,%s,CASE WHEN %s='in_progress' THEN now() END, CASE WHEN %s='done' THEN now() END)
+                   ON CONFLICT(user_id,item_id) DO UPDATE SET status=EXCLUDED.status,
+                   started_at=COALESCE(portal_progress.started_at,EXCLUDED.started_at),
+                   completed_at=EXCLUDED.completed_at""",
+                (g.account["user_id"], item_id, data["status"], data["status"], data["status"]),
+            )
+            adaptation.log_event(conn, g.account["user_id"], "progress_" + data["status"], item_id)
+            if item_id == "wk1-team" and data["status"] == "done":
+                adaptation.sync_access(conn, g.account["user_id"])
             return jsonify(checklist(conn, g.account["user_id"]))
 
     @bp.get("/api/pending-items")
@@ -161,7 +197,15 @@ def portal_blueprint(connect, ai_mode="demo", llm=None, llm_slots=None, llm_wait
             item = next((i for i in flat(checklist(conn, data["userId"])) if i["id"] == item_id), None)
             if not item or item["status"] != "pending_approval":
                 raise PortalError(409, "Пункт не ожидает подтверждения", "CONFLICT")
-            conn.execute("UPDATE portal_progress SET status='done' WHERE user_id=%s AND item_id=%s", (data["userId"], item_id))
+            if item_id in ("wk2-first-task", "m2-solo"):
+                step = next(i for i in current_plan(conn, account)["items"] if i["id"] == item_id)
+                remaining = [blocker for blocker in step["blockers"] if blocker["action"] != "/contacts"]
+                if remaining:
+                    raise adaptation.AdaptationConflict(remaining[0]["reason"])
+            conn.execute("UPDATE portal_progress SET status='done',completed_at=now() WHERE user_id=%s AND item_id=%s", (data["userId"], item_id))
+            adaptation.log_event(conn, data["userId"], "progress_done", item_id)
+            if item_id == "wk1-1to1":
+                adaptation.sync_access(conn, data["userId"])
             return jsonify(pending_items(conn))
 
     @bp.get("/api/requests")
@@ -170,13 +214,30 @@ def portal_blueprint(connect, ai_mode="demo", llm=None, llm_slots=None, llm_wait
         if queue:
             require_approver()
         with connect() as conn:
-            rows = conn.execute("SELECT r.data FROM portal_requests r JOIN portal_accounts a ON a.user_id=r.user_id "
+            rows = conn.execute("SELECT r.* FROM portal_requests r JOIN portal_accounts a ON a.user_id=r.user_id "
                                 "WHERE a.team=%s AND (%s OR r.user_id=%s) ORDER BY r.created_at DESC",
                                 (g.account["team"], g.account["role"] in ("mentor", "lead"), g.account["user_id"]))
-            return jsonify([r["data"] for r in rows if not queue or r["data"]["status"] in ("sent", "approving")])
+            tickets = []
+            for row in rows:
+                ticket = portal_requests.public_ticket(row, g.account)
+                if ticket["kind"] in portal_requests.NEW_KINDS:
+                    if ticket["status"] == "draft" and row["user_id"] != g.account["user_id"]:
+                        continue
+                    if queue and (not ticket["allowedActions"] or ticket["status"] == "draft" or row["user_id"] == g.account["user_id"]):
+                        continue
+                elif queue and row["status"] not in ("sent", "approving"):
+                    continue
+                tickets.append(ticket)
+            return jsonify(tickets)
 
     @bp.post("/api/requests/<kind>")
     def create_request(kind):
+        if kind in portal_requests.NEW_KINDS:
+            data = body()
+            with connect() as conn:
+                return jsonify(portal_requests.create(
+                    conn, g.account, kind, data, request.headers.get("Idempotency-Key"), visible_tasks(conn),
+                )), 201
         if kind not in ("leave", "access"):
             raise PortalError(404, "Операция не найдена", "NOT_FOUND")
         data = body()
@@ -188,24 +249,52 @@ def portal_blueprint(connect, ai_mode="demo", llm=None, llm_slots=None, llm_wait
                       approvers=["Наставник", "Руководитель"], payload=payload,
                       history=[dict(at=now, status="Черновик" if status == "draft" else "Отправлен", by=g.account["name"])])
         with connect() as conn:
-            conn.execute("INSERT INTO portal_requests(id,user_id,status,data) VALUES (%s,%s,%s,%s)",
-                         (ticket["id"], g.account["user_id"], status, json.dumps(ticket)))
+            task_id = payload.pop("taskId", None)
+            if task_id is not None:
+                if not isinstance(task_id, str) or task_id not in visible_tasks(conn):
+                    raise PortalError(404, "Пункт адаптации не найден", "NOT_FOUND")
+                ticket["taskId"] = task_id
+            conn.execute("INSERT INTO portal_requests(id,user_id,status,data,task_id) VALUES (%s,%s,%s,%s,%s)",
+                         (ticket["id"], g.account["user_id"], status, json.dumps(ticket), task_id))
+            if status == "sent":
+                portal_requests.sent_events(conn, ticket)
         return jsonify(ticket), 201
 
     @bp.post("/api/requests/<request_id>/<operation>")
     def change_request(request_id, operation):
-        if operation not in ("send", "approve", "reject"):
-            raise PortalError(404, "Операция не найдена", "NOT_FOUND")
-        if operation != "send":
-            require_approver()
-        data = body() if request.content_length else {}
-        if (operation == "reject" and (not set(data) <= {"comment"} or not isinstance(data.get("comment", ""), str) or len(data.get("comment", "")) > 300)) or (operation != "reject" and data):
-            raise PortalError(400, "Некорректные поля операции")
+        data = body() if request.get_data(cache=True) else {}
         with connect() as conn:
-            row = conn.execute("SELECT r.* FROM portal_requests r JOIN portal_accounts a ON a.user_id=r.user_id "
-                               "WHERE r.id=%s AND a.team=%s FOR UPDATE OF r", (request_id, g.account["team"])).fetchone()
-            if not row or (operation == "send" and row["user_id"] != g.account["user_id"]):
+            author = conn.execute(
+                "SELECT r.user_id FROM portal_requests r JOIN portal_accounts a ON a.user_id=r.user_id "
+                "WHERE r.id=%s AND a.team=%s", (request_id, g.account["team"]),
+            ).fetchone()
+            if author:
+                adaptation.lock_account(conn, author["user_id"])
+            row = conn.execute(
+                "SELECT r.* FROM portal_requests r JOIN portal_accounts a ON a.user_id=r.user_id "
+                "WHERE r.id=%s AND a.team=%s FOR UPDATE OF r", (request_id, g.account["team"]),
+            ).fetchone() if author else None
+            if row and row["data"]["kind"] in portal_requests.NEW_KINDS:
+                if row["user_id"] != g.account["user_id"] and (row["status"] == "draft" or g.account["role"] == "intern"):
+                    raise PortalError(404, "Запрос не найден", "NOT_FOUND")
+                version = request.headers.get("X-Request-Version")
+                if version is not None and version != row["data"]["updatedAt"]:
+                    raise PortalError(409, "Заявка изменилась. Обновите данные.", "CONFLICT")
+                return jsonify(portal_requests.change(
+                    conn, row, g.account, operation, data, visible_tasks(conn) if operation in ("edit", "send") else set(),
+                ))
+            if operation not in ("send", "approve", "reject"):
+                raise PortalError(404, "Операция не найдена", "NOT_FOUND")
+            if operation != "send":
+                require_approver()
+            if not row or operation == "send" and row["user_id"] != g.account["user_id"]:
                 raise PortalError(404, "Запрос не найден", "NOT_FOUND")
+            if operation == "reject":
+                comment = data.get("comment", "")
+                if not set(data) <= {"comment"} or not isinstance(comment, str) or len(comment) > 300:
+                    raise PortalError(400, "Некорректные поля операции")
+            elif data:
+                raise PortalError(400, "Некорректные поля операции")
             ticket = row["data"]
             status = row["status"]
             if operation == "send":
@@ -221,6 +310,11 @@ def portal_blueprint(connect, ai_mode="demo", llm=None, llm_slots=None, llm_wait
                 conn.execute("INSERT INTO portal_grants(request_id,user_id,system,expires_at) "
                              "VALUES (%s,%s,%s,now()+make_interval(days=>%s))",
                              (request_id, row["user_id"], ticket["payload"]["system"], ticket["payload"]["durationDays"]))
+                adaptation.sync_access(conn, row["user_id"])
+            if target == "sent":
+                portal_requests.sent_events(conn, ticket)
+            if target in ("approved", "rejected"):
+                adaptation.log_event(conn, row["user_id"], "request_result", request_id)
             ticket["status"] = target
             ticket["updatedAt"] = datetime.now(timezone.utc).isoformat()
             label = {"sent": "Отправлен", "approving": "На согласовании", "approved": "Выдан" if ticket["kind"] == "access" else "Одобрен", "rejected": "Отклонён"}[target]
@@ -230,11 +324,144 @@ def portal_blueprint(connect, ai_mode="demo", llm=None, llm_slots=None, llm_wait
 
     @bp.get("/api/contacts")
     def contacts():
-        return jsonify(fixture("contacts"))
+        directory = {entry["id"]: entry for entry in fixture("contacts")}
+        with connect() as conn:
+            staff = conn.execute(
+                "SELECT user_id,name,role FROM portal_accounts "
+                "WHERE team=%s AND role IN ('mentor','lead') "
+                "ORDER BY CASE role WHEN 'mentor' THEN 0 ELSE 1 END, name, user_id",
+                (g.account["team"],),
+            ).fetchall()
+        role_labels = {"mentor": "Наставник", "lead": "Руководитель направления"}
+        entries = [
+            dict(
+                id=person["user_id"], name=person["name"], role=role_labels[person["role"]],
+                roleKey=person["role"], source="team",
+                helpsWith=directory["c-" + person["role"]]["helpsWith"],
+                tone=directory["c-" + person["role"]]["tone"],
+                channel="Очередь команды в портале", responseTime="",
+            )
+            for person in staff
+        ]
+        entries.extend(
+            dict(directory["c-" + role], roleKey=role, source="demo", responseTime="")
+            for role in ("hr", "curator")
+        )
+        return jsonify(entries)
 
     @bp.get("/api/kb")
     def kb():
         return jsonify(fixture("kb-articles"))
+
+    @bp.get("/api/kb/search")
+    def kb_search():
+        q = request.args.get("q", "")
+        category = request.args.get("category")
+        task_id = request.args.get("taskId")
+        track = request.args.get("track")
+        if len(q) > 500 or (category and category not in knowledge.TIER_BY_SOURCE_TYPE) or (track and track not in knowledge.TRACKS):
+            raise PortalError(400, "Проверьте фильтры поиска")
+        with connect() as conn:
+            facts = current_plan(conn)
+            item = next((i for i in facts["items"] if i["id"] == task_id), None)
+            if task_id and item is None:
+                raise PortalError(404, "Пункт адаптации не найден", "NOT_FOUND")
+            effective_track = facts["track"]
+            if track and track != effective_track:
+                return jsonify([])
+            refs = item.get("catalogIds", [task_id]) if item else [None]
+            hits = []
+            for ref in refs:
+                hits.extend(knowledge.search(
+                    conn.cursor(), q, track=effective_track, role=g.account["role"],
+                    category=category, task_id=ref, limit=12,
+                ))
+            hits = {hit["chunkId"]: hit for hit in hits}
+            return jsonify(sorted(hits.values(), key=lambda hit: (-hit["score"], hit["chunkId"]))[:12])
+
+    @bp.get("/api/adaptation/plan")
+    def get_plan():
+        with connect() as conn:
+            return jsonify(current_plan(conn))
+
+    @bp.post("/api/adaptation/items/<item_id>/transition")
+    def change_catalog_item(item_id):
+        data = body()
+        if g.account["role"] != "intern":
+            raise PortalError(403, "Действие доступно стажёру", "FORBIDDEN")
+        if not set(data) <= {"target", "evidenceUri"} or data.get("target") not in ("in_progress", "evidence_pending", "completed"):
+            raise PortalError(400, "Проверьте переход")
+        evidence = data.get("evidenceUri")
+        if evidence is not None and (not isinstance(evidence, str) or not evidence.startswith("https://") or len(evidence) > 500):
+            raise PortalError(400, "Укажите HTTPS-ссылку на подтверждение")
+        with connect() as conn:
+            user_id = g.account["user_id"]
+            adaptation.lock_account(conn, user_id)
+            item = next((i for i in current_plan(conn)["items"] if i["id"] == item_id and i["origin"] == "catalog"), None)
+            if not item:
+                raise PortalError(404, "Пункт адаптации не найден", "NOT_FOUND")
+            if item["blockers"]:
+                raise adaptation.AdaptationConflict(item["blockers"][0]["reason"])
+            profile = onboarding.read_profile(conn.cursor(), user_id)
+            _, error = onboarding.transition(conn.cursor(), user_id, profile, item_id, data["target"], evidence_uri=evidence)
+            if error:
+                code, message = error
+                raise PortalError(403 if code == "forbidden" else 409, message, code.upper())
+            adaptation.log_event(conn, user_id, "catalog_" + data["target"], item_id)
+            return jsonify(current_plan(conn))
+
+    @bp.post("/api/adaptation/first-task/<operation>")
+    def change_first_task(operation):
+        if operation not in ("open", "start", "assign", "confirm"):
+            raise PortalError(404, "Операция не найдена", "NOT_FOUND")
+        data = body() if request.get_data(cache=True) else {}
+        with connect() as conn:
+            if operation in ("assign", "confirm"):
+                require_approver()
+                if set(data) != {"userId"} or not isinstance(data["userId"], str):
+                    raise PortalError(400, "Укажите стажёра")
+                account = scoped_account(conn, data["userId"])
+                if account["role"] != "intern":
+                    raise PortalError(400, "Действие доступно для стажёра")
+            else:
+                if data or g.account["role"] != "intern":
+                    raise PortalError(403, "Действие доступно владельцу задачи", "FORBIDDEN")
+                account = g.account
+            user_id = account["user_id"]
+            if operation == "assign":
+                adaptation.lock_account(conn, user_id)
+                profile = onboarding.read_profile(conn.cursor(), user_id)
+                code = adaptation.TASKS[profile["track"] if profile else "backend"][0]
+                new = conn.execute(
+                    "INSERT INTO portal_first_tasks(user_id,task_code,assigned_by) VALUES (%s,%s,%s) "
+                    "ON CONFLICT DO NOTHING RETURNING user_id", (user_id, code, g.account["user_id"]),
+                ).fetchone()
+                if not new:
+                    raise adaptation.AdaptationConflict("Учебная задача уже назначена")
+                adaptation.log_event(conn, user_id, "task_assigned", code)
+                return jsonify(ok=True)
+            return jsonify(adaptation.change_first_task(conn, account, checklist(conn, user_id), operation))
+
+    @bp.get("/api/adaptation/metrics")
+    def get_adaptation_metrics():
+        with connect() as conn:
+            accounts = conn.execute(
+                "SELECT * FROM portal_accounts WHERE team=%s AND role='intern' AND (%s OR user_id=%s)",
+                (g.account["team"], g.account["role"] != "intern", g.account["user_id"]),
+            ).fetchall()
+            starts = {}
+            quick = []
+            for account in accounts:
+                user_id = account["user_id"]
+                profile = onboarding.read_profile(conn.cursor(), user_id)
+                if profile:
+                    starts[user_id] = profile["start_date"]
+                steps = current_plan(conn, account)["quickStart"]
+                quick.append(sum(step["done"] for step in steps) / len(steps))
+            events = conn.execute(
+                "SELECT * FROM portal_events WHERE user_id=ANY(%s)", ([a["user_id"] for a in accounts],),
+            ).fetchall()
+            return jsonify(adaptation.calculate_metrics(events, starts, quick))
 
     @bp.get("/api/access-systems")
     def systems():
@@ -248,8 +475,11 @@ def portal_blueprint(connect, ai_mode="demo", llm=None, llm_slots=None, llm_wait
             for account in conn.execute("SELECT * FROM portal_accounts WHERE role='intern' AND team=%s ORDER BY name", (g.account["team"],)).fetchall():
                 items = flat(checklist(conn, account["user_id"]))
                 done = sum(i["status"] == "done" for i in items)
-                next_item = next((i for i in items if i["status"] != "done"), None)
-                result.append(dict(user=public_user(account), progress=dict(done=done, total=len(items), percent=round(100 * done / len(items)) if items else 0), nextStepTitle=next_item["title"] if next_item else None))
+                next_item = current_plan(conn, account)["nextStep"]
+                task = adaptation.first_task(conn, account["user_id"])
+                result.append(dict(user=public_user(account), progress=dict(done=done, total=len(items), percent=round(100 * done / len(items)) if items else 0),
+                                   nextStepTitle=next_item["title"] if next_item else None,
+                                   firstTaskStatus=("confirmed" if task["start_confirmed_at"] else "reported" if task["start_reported_at"] else "assigned") if task else "unassigned"))
             return jsonify(result)
 
     @bp.get("/api/metrics")
@@ -262,58 +492,36 @@ def portal_blueprint(connect, ai_mode="demo", llm=None, llm_slots=None, llm_wait
                        questionsWithoutMentorShare=0, timeToFirstTaskDays=dict(before=0, current=0),
                        internsOnTrackShare=done / len(accounts) if accounts else 0)
 
+    @bp.get("/api/chat/config")
+    def chat_config():
+        return jsonify(aiMode=ai_mode)
+
     @bp.post("/api/chat")
     def chat():
+        return jsonify(portal_chat.respond(
+            connect, g.account, body(), current_plan, ai_mode, llm, llm_slots, llm_wait, PortalError,
+        ))
+
+    @bp.post("/api/chat/feedback")
+    def feedback():
         data = body()
-        if set(data) != {"message"} or not isinstance(data["message"], str) or not 1 <= len(data["message"].strip()) <= 4000:
-            raise PortalError(400, "Сообщение должно содержать от 1 до 4000 символов")
-        text = data["message"].strip()
-        intent = classify(text)
-        link, label = "/timeline", "Открыть путь адаптации"
+        if set(data) != {"messageId", "outcome"} or not portal_chat.valid_message_id(data["messageId"]) or data["outcome"] not in ("resolved", "mentor"):
+            raise PortalError(400, "Проверьте данные отзыва")
         with connect() as conn:
-            items = flat(checklist(conn, g.account["user_id"]))
-            completed = sum(i["status"] == "done" for i in items)
-            next_item = next((i for i in items if i["status"] != "done"), None)
-            sources = []
-            if intent == "unsafe":
-                answer = "Не передавайте пароли и токены. Я помогаю с адаптацией; права и действия проверяет сервер."
-            elif "отгул" in text.lower() or "отпуск" in text.lower():
-                answer, link, label = "Оформите даты и причину в форме отгула и подтвердите отправку.", "/requests/new/leave", "Оформить отгул"
-            elif intent == "access":
-                answer, link, label = "Выберите систему, срок и обоснование в форме доступа. Отправка требует вашего подтверждения.", "/requests/new/access", "Запросить доступ"
-            elif intent == "progress":
-                answer = f"Выполнено {completed} из {len(items)} пунктов адаптации."
-            elif intent == "next_step":
-                answer = "Следующий шаг: " + next_item["title"] if next_item else "Все пункты адаптации выполнены."
-            elif intent in ("mentor", "feedback", "curator_reply"):
-                answer, link, label = "Обратитесь к наставнику. Опишите задачу, что уже попробовали и где нужна помощь.", "/contacts", "Контакты наставника"
-            else:
-                profile = onboarding.read_profile(conn.cursor(), g.account["user_id"])
-                sources = knowledge.search(conn.cursor(), text, track=profile["track"])
-                answer = (sources[0]["snippet"] + "\nИсточник: " + sources[0]["title"]) if sources else "Не нашёл подтверждённой информации. Уточните вопрос или обратитесь к наставнику."
-                link, label = "/kb", "Открыть базу знаний"
-        # Use the same provider and grounding gates as the source backend.
-        payload = dict(intent=intent, text=answer, progress=dict(completed=completed, total=len(items), pct=round(100 * completed / len(items), 1) if items else 0), sources=sources,
-                       nextStep=dict(id=next_item["id"], title=next_item["title"]) if next_item else None)
-        if llm is not None and sources and intent in orchestrator.STEERABLE:
-            llm_request = orchestrator._build_llm_request(text, payload, profile)
-            if not llm_slots.acquire(timeout=llm_wait):
-                raise PortalError(503, "Помощник перегружен. Повторите позже", "UNAVAILABLE")
-            try:
-                response = orchestrator.call_provider(llm, llm_request)
-            except orchestrator.BuddyProviderUnavailable:
-                raise PortalError(503, "Помощник временно недоступен", "UNAVAILABLE") from None
-            finally:
-                llm_slots.release()
-            parsed = orchestrator._parse_llm_output(response.content) if response.finish_reason == "stop" else None
-            if parsed and parsed[0] == intent and orchestrator._text_consistent_with_facts(parsed[1], payload):
-                ok, _ = orchestrator._validated_source_citations(payload, parsed[2])
-                if ok:
-                    answer = parsed[1]
-        # Revalidate session after a potentially slow provider call.
-        with connect() as conn:
-            if not current_account(conn):
-                raise PortalError(401, "Войдите в аккаунт", "UNAUTHENTICATED")
-        return jsonify(intentId=intent, text=answer, actions=[dict(id="open-page", label=label, kind="navigate", target=link)])
+            user_id = g.account["user_id"]
+            message_id = data["messageId"]
+            adaptation.lock_account(conn, user_id)
+            previous = conn.execute(
+                "SELECT event_type FROM portal_events WHERE user_id=%s AND entity_id=%s "
+                "AND event_type IN ('chat_answered','chat_resolved','chat_mentor')", (user_id, message_id),
+            ).fetchall()
+            names = {row["event_type"] for row in previous}
+            if "chat_answered" not in names:
+                raise PortalError(404, "Ответ не найден", "NOT_FOUND")
+            target = "chat_" + data["outcome"]
+            if target not in names and names & {"chat_resolved", "chat_mentor"}:
+                raise adaptation.AdaptationConflict("Отзыв уже сохранён")
+            adaptation.log_event(conn, user_id, target, message_id)
+            return jsonify(ok=True)
 
     return bp

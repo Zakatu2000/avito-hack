@@ -151,11 +151,11 @@ def seed_onboarding(cur):
             INSERT INTO checklist_items
                 (id, track, title, original_text, description, instructions,
                  stage, stage_order, stage_label, actor, prerequisites,
-                 objective, evidence, completion_policy, source_ref)
+                 objective, evidence, completion_policy, source_ref, priority, estimated_minutes, required_access)
             VALUES (%(id)s, %(track)s, %(title)s, %(originalText)s, %(description)s,
                     %(instructions)s, %(stage)s, %(stageOrder)s, %(stageLabel)s,
                     %(actor)s, %(prerequisites)s, %(objective)s, %(evidence)s,
-                    %(completionPolicy)s, %(sourceRef)s)
+                    %(completionPolicy)s, %(sourceRef)s, %(priority)s, %(estimatedMinutes)s, %(requiredAccess)s)
             ON CONFLICT (id) DO UPDATE SET
                 track = EXCLUDED.track, title = EXCLUDED.title,
                 original_text = EXCLUDED.original_text,
@@ -166,48 +166,56 @@ def seed_onboarding(cur):
                 prerequisites = EXCLUDED.prerequisites,
                 objective = EXCLUDED.objective, evidence = EXCLUDED.evidence,
                 completion_policy = EXCLUDED.completion_policy,
-                source_ref = EXCLUDED.source_ref
+                source_ref = EXCLUDED.source_ref, priority = EXCLUDED.priority,
+                estimated_minutes = EXCLUDED.estimated_minutes, required_access = EXCLUDED.required_access
         """, {**item,
               "instructions": json.dumps(item["instructions"], ensure_ascii=False),
               "prerequisites": json.dumps(item["prerequisites"], ensure_ascii=False),
-              "sourceRef": json.dumps(item["sourceRef"], ensure_ascii=False)})
+              "sourceRef": json.dumps(item["sourceRef"], ensure_ascii=False),
+              "priority": item.get("priority", 100), "estimatedMinutes": item.get("estimatedMinutes"),
+              "requiredAccess": json.dumps(item.get("requiredAccess", []))})
 
     kb = _load_fixture("knowledge_base.json")
     for doc in kb["documents"]:
         cur.execute("""
             INSERT INTO kb_documents
                 (id, title, source_type, url, version, freshness, tracks, roles,
-                 governance, source_status)
+                 governance, source_status, source_locator, synthetic)
             VALUES (%(id)s, %(title)s, %(sourceType)s, %(url)s, %(version)s,
                     %(freshness)s, %(tracks)s, %(roles)s, %(governance)s,
-                    %(sourceStatus)s)
+                    %(sourceStatus)s, %(sourceLocator)s, %(synthetic)s)
             ON CONFLICT (id) DO UPDATE SET
                 title = EXCLUDED.title, source_type = EXCLUDED.source_type,
                 url = EXCLUDED.url, version = EXCLUDED.version,
                 freshness = EXCLUDED.freshness, tracks = EXCLUDED.tracks,
                 roles = EXCLUDED.roles, governance = EXCLUDED.governance,
-                source_status = EXCLUDED.source_status
+                source_status = EXCLUDED.source_status, source_locator = EXCLUDED.source_locator,
+                synthetic = EXCLUDED.synthetic
         """, {**doc,
               "tracks": json.dumps(doc["tracks"], ensure_ascii=False),
               "roles": json.dumps(doc["roles"], ensure_ascii=False),
-              "sourceStatus": doc.get("sourceStatus", "verified")})
+              "sourceStatus": doc.get("sourceStatus", "verified"),
+              "sourceLocator": doc.get("sourceLocator"),
+              "synthetic": doc.get("synthetic", False)})
         for chunk in doc["chunks"]:
             cur.execute("""
                 INSERT INTO kb_chunks
                     (id, doc_id, title, body, quote, topics, conflict_note,
-                     checklist_refs)
+                     checklist_refs, difficulty, estimated_minutes)
                 VALUES (%(id)s, %(doc_id)s, %(title)s, %(body)s, %(quote)s,
-                        %(topics)s, %(conflict_note)s, %(checklist_refs)s)
+                        %(topics)s, %(conflict_note)s, %(checklist_refs)s, %(difficulty)s, %(estimatedMinutes)s)
                 ON CONFLICT (id) DO UPDATE SET
                     doc_id = EXCLUDED.doc_id, title = EXCLUDED.title,
                     body = EXCLUDED.body, quote = EXCLUDED.quote,
                     topics = EXCLUDED.topics,
                     conflict_note = EXCLUDED.conflict_note,
-                    checklist_refs = EXCLUDED.checklist_refs
+                    checklist_refs = EXCLUDED.checklist_refs, difficulty = EXCLUDED.difficulty,
+                    estimated_minutes = EXCLUDED.estimated_minutes
             """, {"id": chunk["id"], "doc_id": doc["id"], "title": chunk["title"],
                   "body": chunk["text"], "quote": chunk["quote"],
                   "topics": json.dumps(chunk["topics"], ensure_ascii=False),
-                  "conflict_note": chunk.get("conflictNote"),
+                  "conflict_note": chunk.get("conflictNote"), "difficulty": chunk.get("difficulty"),
+                  "estimatedMinutes": chunk.get("estimatedMinutes"),
                   "checklist_refs": json.dumps(chunk.get("checklistRefs", []),
                                                ensure_ascii=False)})
 

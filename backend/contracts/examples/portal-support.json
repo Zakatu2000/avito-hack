@@ -1,0 +1,7 @@
+{
+  "category": "environment",
+  "title": "Сбой учебного окружения",
+  "description": "Проверил README и версию инструмента",
+  "priority": "normal",
+  "taskId": "wk2-env"
+}

@@ -1,56 +1,42 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { ChatAction } from '../api/schemas'
+import { isMockMode } from '../api/auth'
+import type { ChatAction, KnowledgeHit } from '../api/schemas'
 
 export interface ChatMessage {
   id: string
   role: 'user' | 'bot'
   text: string
+  taskId?: string
   actions?: ChatAction[]
-  failed?: boolean
+  sources?: KnowledgeHit[]
+  answerMethod?: 'rules' | 'model'
+  replyId?: string
+  feedback?: 'resolved' | 'mentor'
+  failed?: string
 }
 
 interface ChatState {
   messages: ChatMessage[]
-  typing: boolean
-  lastUserMessage: string | null
-  addUser: (text: string) => ChatMessage
-  addBot: (msg: Omit<ChatMessage, 'role'>) => void
-  markLastFailed: () => void
-  setTyping: (typing: boolean) => void
+  changeMessage: (id: string, patch: Partial<ChatMessage>) => void
+  append: (message: ChatMessage) => void
   reset: () => void
-}
-
-function makeId(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
-  return `m-${Date.now()}-${Math.round(Math.random() * 1e6)}`
 }
 
 export const useChatStore = create<ChatState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       messages: [],
-      typing: false,
-      lastUserMessage: null,
-      addUser: (text) => {
-        const msg: ChatMessage = { id: makeId(), role: 'user', text }
-        set({ messages: [...get().messages, msg], lastUserMessage: text })
-        return msg
-      },
-      addBot: (msg) => set({ messages: [...get().messages, { ...msg, role: 'bot' }] }),
-      markLastFailed: () => {
-        const messages = [...get().messages]
-        for (let i = messages.length - 1; i >= 0; i--) {
-          if (messages[i].role === 'user') {
-            messages[i] = { ...messages[i], failed: true }
-            break
-          }
-        }
-        set({ messages })
-      },
-      setTyping: (typing) => set({ typing }),
-      reset: () => set({ messages: [], typing: false, lastUserMessage: null }),
+      changeMessage: (id, patch) => set((state) => ({
+        messages: state.messages.map((message) => message.id === id ? { ...message, ...patch } : message),
+      })),
+      append: (message) => set((state) => ({ messages: [...state.messages, message] })),
+      reset: () => set({ messages: [] }),
     }),
-    { name: 'ai-buddy-chat' },
+    {
+      name: 'ai-buddy-chat', version: 1,
+      migrate: () => ({}),
+      partialize: (state) => ({ messages: isMockMode ? state.messages : [] }),
+    },
   ),
 )

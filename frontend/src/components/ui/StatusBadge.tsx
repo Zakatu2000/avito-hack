@@ -11,6 +11,11 @@ const STATUS_CONFIG: Record<ItemStatus | RequestStatus, { label: string; tone: B
   sent: { label: 'Отправлен', tone: 'blue' },
   approving: { label: 'На согласовании', tone: 'purple' },
   approved: { label: 'Одобрен', tone: 'green' },
+  resolved: { label: 'Решение предложено', tone: 'green' },
+  closed: { label: 'Закрыт', tone: 'green' },
+  awaiting_confirmation: { label: 'Ожидается ответ стажёра', tone: 'purple' },
+  scheduled: { label: 'Время согласовано', tone: 'blue' },
+  completed: { label: 'Завершён', tone: 'green' },
   rejected: { label: 'Отклонён', tone: 'red' },
 }
 

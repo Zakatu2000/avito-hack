@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getErrorMessage } from '../api/client'
 import { useAccessSystems, useCreateAccessRequest } from '../api/hooks'
 import { AccessRequestInputSchema, type AccessRequestInput } from '../api/schemas'
@@ -20,7 +20,8 @@ const DURATION_OPTIONS = [
 
 export function AccessFormPage() {
   const systems = useAccessSystems()
-  const [systemId, setSystemId] = useState('')
+  const [params] = useSearchParams()
+  const [systemId, setSystemId] = useState(params.get('system') ?? '')
   const [justification, setJustification] = useState('')
   const [durationDays, setDurationDays] = useState('90')
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -40,6 +41,7 @@ export function AccessFormPage() {
     system: systemId,
     justification,
     durationDays: Number(durationDays),
+    taskId: params.get('task') || undefined,
   }
 
   const validate = (): boolean => {
