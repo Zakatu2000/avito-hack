@@ -33,7 +33,7 @@
 | Python dependency consistency: pip check | Конфликтов нет |
 | Docker Compose config | Валиден |
 | Браузер Chromium с реальным API | Пройден |
-| Сохранность frontend и исходного backend | Проверена scripts/verify_transfer.py |
+| Сохранность frontend и исходного backend | Проверена на момент переноса |
 | Conflict markers / git diff --check | Отсутствуют / пройдено |
 
 Относительно frontend добавлены 142 файла, изменены 7 файлов авторизации и
@@ -66,6 +66,3 @@ npm исправления требуют major-обновлений; package.js
 В tests/conftest.py кешируются хеши одного и того же синтетического пароля
 при сбросах тестовой БД. Производственная генерация и проверка паролей,
 регистрация и алгоритмы хеширования не менялись этой оптимизацией.
-
-Полный перечень файлов: [TRANSFER_FILES.md](TRANSFER_FILES.md).
-Решения и ручные сценарии: [INTEGRATION.md](INTEGRATION.md).

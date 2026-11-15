@@ -6,9 +6,16 @@
 
 ## Запуск
 
-1. Установите Python 3.12, Node.js 20+ и PostgreSQL для Windows.
-2. Дважды щёлкните [`start.cmd`](start.cmd) в папке проекта. При первом запуске установятся зависимости. Когда приложение будет готово, браузер откроет [http://localhost:5177](http://localhost:5177).
-3. Чтобы остановить стенд, нажмите `Ctrl+C` в открытом окне запуска. Данные PostgreSQL и логи сохраняются в `.local/`.
+| Система | Что установить один раз | Файл для двойного щелчка |
+| --- | --- | --- |
+| Windows | Python 3.12, Node.js 20+ и PostgreSQL | [`start.cmd`](start.cmd) |
+| macOS | В терминале с [Homebrew](https://brew.sh/) выполните `brew install python@3.12 node@24 postgresql@16` | [`start.command`](start.command) |
+
+Откройте файл для вашей системы в папке проекта. При первом запуске установятся зависимости проекта и создастся локальная база. Когда стенд будет готов, браузер откроет [http://localhost:5177](http://localhost:5177).
+
+Если после распаковки архива macOS сообщает, что у файла нет права на исполнение, один раз выполните `chmod +x start.command` из папки проекта. При клонировании через Git право сохраняется.
+
+Чтобы остановить стенд, нажмите `Ctrl+C` в окне запуска. Данные PostgreSQL и логи сохраняются в `.local/`.
 
 Повторный запуск открывает уже работающий стенд. Чат запускается в деморежиме без ключа AI.
 
@@ -21,7 +28,7 @@
 | Стажёр | `intern@example.test` | `DemoIntern-2026` | Кнопка «Создать аккаунт» на странице входа |
 | Наставник | `mentor@example.test` | `DemoMentor-2026` | Команда ниже, пароль вводится дважды |
 
-Для создания наставника после запуска стенда выполните в отдельном PowerShell из корня проекта:
+На Windows после запуска стенда выполните в отдельном PowerShell из корня проекта.
 
 ```powershell
 $env:PGPASSWORD = (Get-Content .local/preview-db-password -Raw).Trim()
@@ -33,6 +40,16 @@ try {
     Pop-Location
     Remove-Item Env:PGPASSWORD, Env:DATABASE_URL
 }
+```
+
+На macOS выполните в отдельном окне терминала из корня проекта.
+
+```sh
+(
+  export PGPASSWORD="$(cat .local/preview-db-password)"
+  export DATABASE_URL='postgresql://buddy@127.0.0.1:55441/avito_buddy_demo'
+  cd backend && .venv/bin/python -m server.accounts --email mentor@example.test --name 'Demo Mentor' --role mentor
+)
 ```
 
 ## Порядок проверки
@@ -49,6 +66,12 @@ try {
 
 - **Фронтенд** — Node.js 20+, React 18.3.1, TypeScript 5.6.3, Vite 5.4.21 и Vitest 2.1.9. Версии фиксирует [package-lock.json](frontend/package-lock.json).
 - **Backend** — Python 3.12, Flask 3.1.2, psycopg 3.2.10, Waitress 3.0.2, PostgreSQL. Последний замер выполнен на PostgreSQL 18.6. Зависимости записаны в [requirements.txt](backend/server/requirements.txt) и [pyproject.toml](backend/ai/pyproject.toml).
+
+На macOS перед тестами добавьте установленный через Homebrew Node.js в `PATH` текущего терминала. Для команд Python в этом разделе используйте `python3.12`.
+
+```sh
+export PATH="$(brew --prefix node@24)/bin:$PATH"
+```
 
 Из папки `frontend/`:
 
@@ -71,12 +94,11 @@ python scripts/check.py
 
 Скрипт проверяет API, Python, AI и демодиалоги. Отчёт Python записывается в `backend/reports/python-coverage.json`. Текущий замер опубликован в [отчёте о покрытии](COVERAGE.md). Результаты предыдущих прогонов описаны в [VALIDATION.md](VALIDATION.md).
 
-Для проверки в Chromium откройте приложение через `start.cmd`, затем выполните из корня:
+Для проверки в Chromium откройте приложение файлом запуска для вашей системы и выполните из корня проекта следующие команды.
 
-```powershell
+```sh
 npm install --prefix .local/browser --no-save playwright
 node .local/browser/node_modules/playwright/cli.js install chromium
-$env:BASE_URL = 'http://localhost:5177'
 node scripts/browser-smoke.cjs
 ```
 

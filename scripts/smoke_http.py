@@ -69,7 +69,7 @@ def main():
         parser.error("Supply an explicit local HTTP origin, such as http://localhost:5177")
 
     def restart():
-        input("Stop the preview with Ctrl+C, double-click start.cmd, then press Enter when the app is ready. ")
+        input("Stop the preview with Ctrl+C, reopen the launcher, then press Enter when the app is ready. ")
 
     verify(base_url, restart)
 
