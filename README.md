@@ -1,163 +1,108 @@
-# Avito Start: frontend + backend
+# AI-buddy «Первый PR» · Hack&Change 2026
 
-Сборка объединяет портал адаптации и контактов из `feat/ai-buddy-adaptation-contacts`
-с ИИ-маршрутизацией и историей чатов из `merge-backend-into-frontend`.
-Фронтенд находится в `frontend/`, сервер и AI в `backend/`.
+Помощник стажёра Авито. Отвечает на вопросы об адаптации со ссылками на материалы, подсказывает следующий шаг и помогает оформить заявки. Стажёр видит статусы и историю, а наставник обрабатывает заявки и подтверждает этапы в разделе «Команда».
 
-## Запуск одной командой в Windows
+Версия для проверки находится в ветке [`integration/ai-buddy`](https://github.com/Zakatu2000/avito-hack/tree/integration/ai-buddy).
 
-Установите Python 3.12, Node.js 20+ и PostgreSQL. Чтобы запустить проект двойным
-кликом в Проводнике, откройте `start.cmd`. Из Git Bash можно запустить
-`bash ./start.sh`. Оба файла откроют страницу в браузере. Повторный запуск
-откроет уже работающий предпросмотр.
+## Запуск
 
-Из PowerShell также можно запустить:
+### Windows
 
-```powershell
-.\start.ps1
-```
+Установите Python 3.12, Node.js 20+ и PostgreSQL. Откройте `start.cmd` двойным кликом из папки проекта. Из Git Bash можно выполнить `bash ./start.sh`, из PowerShell — `.\start.ps1`.
 
-Скрипт устанавливает зависимости при первом запуске и после изменения файлов
-зависимостей. Он применяет миграции, запускает отдельную локальную базу, API и
-фронтенд в деморежиме. При запуске напрямую из PowerShell откройте
-[http://localhost:5177](http://localhost:5177). Для остановки нажмите
-`Ctrl+C` в терминале. Данные локальной базы сохраняются в `.local/preview-pg`,
-там же в `.local` доступны логи. Скрипт использует порты 5050, 5177 и 55441.
+Скрипт устанавливает зависимости, применяет миграции и запускает локальный стенд в деморежиме. Откройте [http://localhost:5177](http://localhost:5177). Повторный запуск открывает уже работающий стенд. Для остановки нажмите `Ctrl+C` в окне, где он был запущен. База и логи сохраняются в `.local/`.
 
-Если PowerShell блокирует запуск локальных скриптов, выполните
-`powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start.ps1`.
-Для нестандартной установки PostgreSQL передайте путь к её `bin` через
-`-PostgresBin`.
+Из PowerShell при ограничениях на запуск скриптов используйте `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start.ps1`. Для нестандартной установки PostgreSQL передайте `-PostgresBin` с путём к каталогу `bin`.
 
-## Запуск через Docker
+### Docker Compose
 
-Из корня репозитория, при запущенном Docker Desktop:
+Из корня проекта скопируйте `.env.example` в `.env` и задайте `POSTGRES_PASSWORD` из латинских букв и цифр. Сохраните `AI_MODE=demo`, чтобы проверять стенд без ключа.
 
-```powershell
-Copy-Item .env.example .env
-# Укажите собственный POSTGRES_PASSWORD в .env (буквы и цифры для URL подключения).
+```sh
 docker compose up --build
 ```
 
-Откройте **http://localhost:8080**. Зарегистрируйте аккаунт на странице входа.
-API и PostgreSQL доступны контейнерам, их порты не публикуются наружу.
-Состояние сохраняется в volume `buddy_pg`. Миграции и демо-каталог применяются
-автоматически; повторный запуск не сбрасывает созданные аккаунты и заявки.
+Откройте [http://localhost:8080](http://localhost:8080). API применит миграции и загрузит тестовые данные при старте. PostgreSQL сохраняет данные в томе `buddy_pg`. Для остановки используйте `docker compose down`.
 
-Создание наставника или руководителя (пароль запрашивается интерактивно):
+## Тестовые аккаунты
 
-```powershell
-docker compose exec api python -m server.accounts --email mentor@example.com --name "Марина Ким" --role mentor
-docker compose exec api python -m server.accounts --email lead@example.com --name "Олег Ветров" --role lead
+На чистой базе создайте два аккаунта по инструкции ниже. Адреса и пароли приведены для локального демостенда.
+
+| Роль | Email | Пароль для демо | Где создать |
+| --- | --- | --- | --- |
+| Стажёр | `intern@example.test` | `DemoIntern-2026` | Кнопка «Создать аккаунт» на странице входа |
+| Наставник | `mentor@example.test` | `DemoMentor-2026` | Команда ниже, пароль вводится дважды |
+
+В Docker создайте наставника из корня проекта:
+
+```sh
+docker compose exec api python -m server.accounts --email mentor@example.test --name "Demo Mentor" --role mentor
 ```
 
-Публичная регистрация всегда создаёт роль `intern`. Паролей по умолчанию для
-новых аккаунтов нет. Подтверждение email и восстановление пароля пока не реализованы.
-Для HTTPS задайте `SESSION_COOKIE_SECURE=1` и фактический `PUBLIC_ORIGIN`.
-
-## Локальная разработка без Docker
-
-Нужны Node.js 20+, Python 3.12 и отдельная PostgreSQL-база `avito_buddy_demo`.
-Не используйте существующую базу другого приложения.
-
-Первый терминал, из корня репозитория (PowerShell):
+Если стенд запущен через `start.cmd`, выполните в отдельном PowerShell из корня:
 
 ```powershell
-cd backend
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r server/requirements-test.txt -r contracts/requirements.txt -e "./ai[dev]"
-$env:DATABASE_URL='postgresql://buddy:YOUR_PASSWORD@127.0.0.1:5432/avito_buddy_demo'
-$env:PUBLIC_ORIGIN='http://localhost:5173'
-$env:PORTAL_PROTECT_LEGACY='1'
-$env:PYTHONPATH=(Join-Path (Get-Location) 'ai')
-.\.venv\Scripts\python.exe -m server.store migrate
-.\.venv\Scripts\python.exe -m server.store seed
-.\.venv\Scripts\python.exe -m waitress --listen=127.0.0.1:5050 --call server.app:create_app
+$env:PGPASSWORD = (Get-Content .local/preview-db-password -Raw).Trim()
+$env:DATABASE_URL = 'postgresql://buddy@127.0.0.1:55441/avito_buddy_demo'
+Push-Location backend
+try {
+    .\.venv\Scripts\python.exe -m server.accounts --email mentor@example.test --name "Demo Mentor" --role mentor
+} finally {
+    Pop-Location
+    Remove-Item Env:PGPASSWORD, Env:DATABASE_URL
+}
 ```
 
-Второй терминал, из корня:
+## Порядок проверки
 
-```powershell
-cd frontend
+1. Войдите как стажёр. Откройте «Кому обратиться» и введите «Не работает VPN». Рекомендация откроет форму техпомощи с категорией «VPN и сеть». Заполните и отправьте обращение.
+2. Перейдите в чат и спросите «Нужен доступ к репозиторию». Откройте форму по кнопке в ответе, укажите обоснование и отправьте заявку. Обновите страницу «Запросы» и убедитесь, что заявка осталась в списке.
+3. Войдите как наставник в другом профиле браузера или в приватном окне. В разделе «Команда» найдите очередь, возьмите техобращение в работу и предложите решение. В заявке на доступ нажмите «Согласовать», затем «Вынести решение».
+4. Вернитесь в сессию стажёра. В «Запросах» проверьте статус «Выдан» и историю согласования, закройте техобращение после проверки. В чате снова спросите о доступе к репозиторию. Откройте «Путь адаптации», чтобы увидеть следующий шаг и оставшиеся блокировки.
+5. Дополнительные сценарии доступны в «Запросах»: отгул, консультация с наставником и запрос учебного материала. Для консультации наставник согласует время и сохраняет итог. Для учебного запроса сначала выполните поиск по теме, затем отправьте заявку, по которой наставник может дать рекомендацию.
+
+В деморежиме выдача доступа, консультации и учебные назначения имитируются внутри портала. Согласованные слоты хранятся в PostgreSQL. Для внешнего ИИ поддерживается настройка `AI_MODE=live`, `AI_BASE_URL`, `AI_MODEL` и `AI_API_KEY` в `.env` для Compose.
+
+## Тесты и покрытие
+
+- **Фронтенд** — Node.js 20+, React 18.3.1, TypeScript 5.6.3, Vite 5.4.21 и Vitest 2.1.9. Версии фиксирует [package-lock.json](frontend/package-lock.json).
+- **Backend** — Python 3.12, Flask 3.1.2, psycopg 3.2.10, Waitress 3.0.2, PostgreSQL 16 в Compose. Зависимости записаны в [requirements.txt](backend/server/requirements.txt) и [pyproject.toml](backend/ai/pyproject.toml).
+
+Из папки `frontend/`:
+
+```sh
 npm ci
-$env:VITE_ENABLE_MSW='false'
-node node_modules/vite/bin/vite.js --config vite.integrated.config.ts --port 5173 --strictPort
-```
-
-Откройте **http://localhost:5173**. Vite проксирует `/api/*` в `127.0.0.1:5050`.
-`VITE_API_URL` оставьте пустым. Для другого порта поменяйте и `PUBLIC_ORIGIN`.
-Сервер читает переменные процесса; корневой `.env` автоматически читает только Compose.
-
-Создание наставника без Docker — из `backend/` с тем же `DATABASE_URL`:
-
-```powershell
-.\.venv\Scripts\python.exe -m server.accounts --email mentor@example.com --name "Марина Ким" --role mentor
-```
-
-Оригинальный автономный mock-режим сохранён: `VITE_ENABLE_MSW=true` и `npm run dev`
-из `frontend/`. Он использует MSW/localStorage и тестовый выбор пользователя;
-серверная авторизация при этом не используется. В интегрированной сборке mocks выключены.
-
-## Проверки
-
-```powershell
-git status --short --branch
-git diff --check
-
-cd frontend
-npm run build
-npm run lint
 npm run typecheck
-npm run test
-
-cd ../backend
-$env:TEST_ADMIN_DATABASE_URL='postgresql://buddy:YOUR_PASSWORD@127.0.0.1:5432/postgres'
-# Выделенный тестовый кластер: тесты создают и удаляют собственную временную БД.
-.\.venv\Scripts\python.exe scripts/check.py
-.\.venv\Scripts\python.exe -m pip check
+npm run lint
+npm run build
+npm run test:coverage
 ```
 
-Для браузерной проверки запустите полное приложение, затем из корня:
+Vitest записывает отчёты в `frontend/coverage/index.html` и `frontend/coverage/lcov.info`.
+
+Из папки `backend/` установите зависимости для проверок в виртуальное окружение Python. Укажите `TEST_ADMIN_DATABASE_URL` для отдельного тестового PostgreSQL с правом создавать базы. Тесты создают временные базы и удаляют их после прогона.
+
+```sh
+python -m pip install -r server/requirements-test.txt -r contracts/requirements.txt -e "./ai[dev]"
+python scripts/check.py
+```
+
+Скрипт проверяет API, Python, AI и демодиалоги. Отчёт Python записывается в `backend/reports/python-coverage.json`. Результаты зафиксированных прогонов и условия их воспроизведения описаны в [VALIDATION.md](VALIDATION.md).
+
+Для проверки в Chromium запустите приложение и выполните команды из корня. Пример для стенда Compose:
 
 ```powershell
 npm install --prefix .local/browser --no-save playwright
-# Если Chromium ещё не установлен:
 node .local/browser/node_modules/playwright/cli.js install chromium
-$env:BASE_URL='http://localhost:5173'
+$env:BASE_URL = 'http://localhost:8080'
 node scripts/browser-smoke.cjs
 ```
 
-Тест создаёт отдельный аккаунт и заявку в выбранной локальной базе. Пользователей
-наставника и руководителя он не создаёт. Дополнительные ручные сценарии и решения
-по совместимости — в [INTEGRATION.md](INTEGRATION.md).
+Для запуска через `start.cmd` задайте `BASE_URL=http://localhost:5177`. Расширенный проход включается через `BROWSER_EXTENDED=1`. Для шагов наставника передайте `BROWSER_MENTOR_EMAIL` и `BROWSER_MENTOR_PASSWORD` созданной учётной записи.
 
-Полный список файлов — [TRANSFER_FILES.md](TRANSFER_FILES.md), результаты
-проверок и ограничения окружения — [VALIDATION.md](VALIDATION.md).
+## Спецификации и тестовые данные
 
-## Сценарии портала
-
-После `migrate` и `seed` стажёр может открыть план быстрого старта, искать материалы,
-создавать пять типов заявок и видеть историю решений. Для демо учебной задачи
-создайте наставника командой выше. В разделе «Команда» наставник назначает задачу
-и подтверждает отметку начала. Доступы, слоты консультаций и учебные задачи
-хранятся в PostgreSQL портала и обозначены как демо.
-
-Для расширенного браузерного теста укажите `BROWSER_EXTENDED=1`. Укажите
-`BROWSER_MENTOR_EMAIL` и `BROWSER_MENTOR_PASSWORD` локального тестового аккаунта,
-чтобы включить браузерные шаги наставника. Используйте выделенную демобазу.
-Контракты находятся в `backend/contracts/openapi.yaml`, правила чата и измерений —
-в `backend/docs/sdd/portal.md`.
-
-## База знаний
-
-[Сводка кейса, чек-лист и открытые материалы Авито](docs/avito-case-knowledge.md)
-хранятся в репозитории и доступны для чтения. Поиск и чат используют
-[каталог материалов](backend/server/fixtures/knowledge_base.json), который
-`server.store seed` загружает в PostgreSQL, и
-[чек-лист адаптации](backend/server/fixtures/checklist_catalog.json).
-Правила отбора материалов и ограничения описаны в
-[спецификации портала](backend/docs/sdd/portal.md).
-
-Чат сохраняет сообщения, источники и обратную связь на сервере.
-Для внешнего ИИ настройте `AI_MODE=live`, `AI_BASE_URL`, `AI_MODEL` и `AI_API_KEY`.
-В деморежиме доступны серверные сценарии и поиск по той же базе знаний.
+- [SDD портала](backend/docs/sdd/portal.md) и [SDD агента](backend/docs/sdd/agent.md)
+- [Контракт API](backend/contracts/openapi.yaml) и [примеры ответов](backend/contracts/examples)
+- [Синтетические данные портала](backend/server/portal_fixtures) и [материалы базы знаний](backend/server/fixtures/knowledge_base.json)
+- [Чек-лист адаптации](backend/server/fixtures/checklist_catalog.json) и [источники кейса](docs/avito-case-knowledge.md)
