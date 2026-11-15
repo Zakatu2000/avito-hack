@@ -1,11 +1,10 @@
 [CmdletBinding()]
 param(
-    [string]$PostgresBin = '',
-    [switch]$OpenBrowser
+    [string]$PostgresBin = ''
 )
 
 $ErrorActionPreference = 'Stop'
-$root = $PSScriptRoot
+$root = Split-Path -Parent $PSScriptRoot
 $backend = Join-Path $root 'backend'
 $frontend = Join-Path $root 'frontend'
 $runtime = Join-Path $root '.local'
@@ -67,7 +66,6 @@ function Test-ExistingPreview {
 }
 
 function Open-PreviewPage {
-    if (!$OpenBrowser) { return }
     try {
         Start-Process -FilePath $origin
     } catch {

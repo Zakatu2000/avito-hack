@@ -1,5 +1,5 @@
 // Run against the integrated app: npm install --prefix .local/browser --no-save playwright
-// BASE_URL=http://localhost:5173 node scripts/browser-smoke.cjs
+// BASE_URL=http://localhost:5177 node scripts/browser-smoke.cjs
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -194,7 +194,7 @@ async function main() {
   try {
     const context = await browser.newContext()
     const page = await context.newPage()
-    const base = process.env.BASE_URL || 'http://localhost:5173'
+    const base = process.env.BASE_URL || 'http://localhost:5177'
     const email = `browser-${Date.now()}@example.test`
     const password = 'browser-check-password-2026'
     const errors = []

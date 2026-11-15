@@ -5,5 +5,5 @@ backend/** text=auto eol=lf
 # MSW regenerates the checked-in worker with LF during npm install.
 frontend/public/mockServiceWorker.js text eol=lf
 
-# Keep the Git Bash launcher readable on Windows.
-start.sh text eol=lf
+# The Windows launcher is opened directly by Explorer.
+start.cmd text eol=crlf

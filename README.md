@@ -6,23 +6,11 @@
 
 ## Запуск
 
-### Windows
+1. Установите Python 3.12, Node.js 20+ и PostgreSQL для Windows.
+2. Дважды щёлкните [`start.cmd`](start.cmd) в папке проекта. При первом запуске установятся зависимости. Когда приложение будет готово, браузер откроет [http://localhost:5177](http://localhost:5177).
+3. Чтобы остановить стенд, нажмите `Ctrl+C` в открытом окне запуска. Данные PostgreSQL и логи сохраняются в `.local/`.
 
-Установите Python 3.12, Node.js 20+ и PostgreSQL. Откройте `start.cmd` двойным кликом из папки проекта. Из Git Bash можно выполнить `bash ./start.sh`, из PowerShell — `.\start.ps1`.
-
-Скрипт устанавливает зависимости, применяет миграции и запускает локальный стенд в деморежиме. Откройте [http://localhost:5177](http://localhost:5177). Повторный запуск открывает уже работающий стенд. Для остановки нажмите `Ctrl+C` в окне, где он был запущен. База и логи сохраняются в `.local/`.
-
-Из PowerShell при ограничениях на запуск скриптов используйте `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start.ps1`. Для нестандартной установки PostgreSQL передайте `-PostgresBin` с путём к каталогу `bin`.
-
-### Docker Compose
-
-Из корня проекта скопируйте `.env.example` в `.env` и задайте `POSTGRES_PASSWORD` из латинских букв и цифр. Сохраните `AI_MODE=demo`, чтобы проверять стенд без ключа.
-
-```sh
-docker compose up --build
-```
-
-Откройте [http://localhost:8080](http://localhost:8080). API применит миграции и загрузит тестовые данные при старте. PostgreSQL сохраняет данные в томе `buddy_pg`. Для остановки используйте `docker compose down`.
+Повторный запуск открывает уже работающий стенд. Чат запускается в деморежиме без ключа AI.
 
 ## Тестовые аккаунты
 
@@ -33,13 +21,7 @@ docker compose up --build
 | Стажёр | `intern@example.test` | `DemoIntern-2026` | Кнопка «Создать аккаунт» на странице входа |
 | Наставник | `mentor@example.test` | `DemoMentor-2026` | Команда ниже, пароль вводится дважды |
 
-В Docker создайте наставника из корня проекта:
-
-```sh
-docker compose exec api python -m server.accounts --email mentor@example.test --name "Demo Mentor" --role mentor
-```
-
-Если стенд запущен через `start.cmd`, выполните в отдельном PowerShell из корня:
+Для создания наставника после запуска стенда выполните в отдельном PowerShell из корня проекта:
 
 ```powershell
 $env:PGPASSWORD = (Get-Content .local/preview-db-password -Raw).Trim()
@@ -61,12 +43,12 @@ try {
 4. Вернитесь в сессию стажёра. В «Запросах» проверьте статус «Выдан» и историю согласования, закройте техобращение после проверки. В чате снова спросите о доступе к репозиторию. Откройте «Путь адаптации», чтобы увидеть следующий шаг и оставшиеся блокировки.
 5. Дополнительные сценарии доступны в «Запросах»: отгул, консультация с наставником и запрос учебного материала. Для консультации наставник согласует время и сохраняет итог. Для учебного запроса сначала выполните поиск по теме, затем отправьте заявку, по которой наставник может дать рекомендацию.
 
-В деморежиме выдача доступа, консультации и учебные назначения имитируются внутри портала. Согласованные слоты хранятся в PostgreSQL. Для внешнего ИИ поддерживается настройка `AI_MODE=live`, `AI_BASE_URL`, `AI_MODEL` и `AI_API_KEY` в `.env` для Compose.
+В деморежиме выдача доступа, консультации и учебные назначения имитируются внутри портала. Согласованные слоты хранятся в PostgreSQL.
 
 ## Тесты и покрытие
 
 - **Фронтенд** — Node.js 20+, React 18.3.1, TypeScript 5.6.3, Vite 5.4.21 и Vitest 2.1.9. Версии фиксирует [package-lock.json](frontend/package-lock.json).
-- **Backend** — Python 3.12, Flask 3.1.2, psycopg 3.2.10, Waitress 3.0.2, PostgreSQL 16 в Compose. Зависимости записаны в [requirements.txt](backend/server/requirements.txt) и [pyproject.toml](backend/ai/pyproject.toml).
+- **Backend** — Python 3.12, Flask 3.1.2, psycopg 3.2.10, Waitress 3.0.2, PostgreSQL. Последний замер выполнен на PostgreSQL 18.6. Зависимости записаны в [requirements.txt](backend/server/requirements.txt) и [pyproject.toml](backend/ai/pyproject.toml).
 
 Из папки `frontend/`:
 
@@ -89,16 +71,16 @@ python scripts/check.py
 
 Скрипт проверяет API, Python, AI и демодиалоги. Отчёт Python записывается в `backend/reports/python-coverage.json`. Текущий замер опубликован в [отчёте о покрытии](COVERAGE.md). Результаты предыдущих прогонов описаны в [VALIDATION.md](VALIDATION.md).
 
-Для проверки в Chromium запустите приложение и выполните команды из корня. Пример для стенда Compose:
+Для проверки в Chromium откройте приложение через `start.cmd`, затем выполните из корня:
 
 ```powershell
 npm install --prefix .local/browser --no-save playwright
 node .local/browser/node_modules/playwright/cli.js install chromium
-$env:BASE_URL = 'http://localhost:8080'
+$env:BASE_URL = 'http://localhost:5177'
 node scripts/browser-smoke.cjs
 ```
 
-Для запуска через `start.cmd` задайте `BASE_URL=http://localhost:5177`. Расширенный проход включается через `BROWSER_EXTENDED=1`. Для шагов наставника передайте `BROWSER_MENTOR_EMAIL` и `BROWSER_MENTOR_PASSWORD` созданной учётной записи.
+Расширенный проход включается через `BROWSER_EXTENDED=1`. Для шагов наставника передайте `BROWSER_MENTOR_EMAIL` и `BROWSER_MENTOR_PASSWORD` созданной учётной записи. Для отдельного сценария есть [проверка сохранности после перезапуска](docs/qa/restart.md).
 
 ## Спецификации и тестовые данные
 

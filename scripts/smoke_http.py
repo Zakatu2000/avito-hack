@@ -2,8 +2,6 @@
 import argparse
 import http.cookiejar
 import json
-from pathlib import Path
-import subprocess
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import HTTPCookieProcessor, ProxyHandler, Request, build_opener
@@ -62,20 +60,16 @@ def verify(base_url, restart):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--base-url", default="http://localhost:8080")
+    parser.add_argument("--base-url", default="http://localhost:5177")
     args = parser.parse_args()
     base_url = args.base_url.rstrip("/")
     url = urlsplit(base_url)
     if (url.scheme != "http" or url.hostname not in ("localhost", "127.0.0.1")
             or not url.port or url.path or url.query or url.fragment or url.username):
-        parser.error("Supply an explicit local HTTP origin, such as http://localhost:8080")
+        parser.error("Supply an explicit local HTTP origin, such as http://localhost:5177")
 
     def restart():
-        root = Path(__file__).resolve().parents[1]
-        subprocess.run(["docker", "compose", "restart", "--timeout", "15", "api"],
-                       cwd=root, check=True)
-        subprocess.run(["docker", "compose", "up", "-d", "--wait", "--wait-timeout", "90", "api"],
-                       cwd=root, check=True)
+        input("Stop the preview with Ctrl+C, double-click start.cmd, then press Enter when the app is ready. ")
 
     verify(base_url, restart)
 
