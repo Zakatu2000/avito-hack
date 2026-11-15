@@ -244,8 +244,31 @@ export const ChatReplySchema = z.object({
   answerMethod: z.enum(['rules', 'model']).optional(),
   sources: z.array(KnowledgeHitSchema).optional(),
   messageId: z.string().optional(),
+  conversationId: z.string().optional(),
 })
 export type ChatReply = z.infer<typeof ChatReplySchema>
+
+export const ChatSummarySchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+export type ChatSummary = z.infer<typeof ChatSummarySchema>
+export const ChatListSchema = z.array(ChatSummarySchema)
+
+export const ChatHistoryMessageSchema = z.object({
+  id: z.union([z.number(), z.string()]),
+  role: z.enum(['user', 'bot']),
+  text: z.string(),
+  actions: z.array(ChatActionSchema).optional(),
+  sources: z.array(KnowledgeHitSchema).optional(),
+  answerMethod: ChatReplySchema.shape.answerMethod,
+  messageId: z.string().optional(),
+  feedback: z.enum(['resolved', 'mentor']).optional(),
+})
+export type ChatHistoryMessage = z.infer<typeof ChatHistoryMessageSchema>
+export const ChatHistorySchema = z.array(ChatHistoryMessageSchema)
 
 /* ---------- Ошибки API ---------- */
 

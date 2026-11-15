@@ -1,5 +1,6 @@
 """Frontend contract adapter. Durable requests, role checks and local demo grants."""
 import json
+import re
 import secrets
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -70,6 +71,47 @@ def body():
     if not isinstance(data, dict):
         raise PortalError(400, "Ожидается JSON-объект")
     return data
+
+
+_CHAT_ID = re.compile(r"^chat-[0-9a-f]{24}$")
+_HISTORY_LIMIT = 10
+def _conversation(conn, conversation_id, *, lock=False):
+    row = conn.execute(
+        "SELECT id, title, created_at, updated_at FROM portal_conversations "
+        "WHERE id=%s AND user_id=%s" + (" FOR UPDATE" if lock else ""),
+        (conversation_id, g.account["user_id"])).fetchone()
+    if not row:
+        raise PortalError(404, "Чат не найден", "NOT_FOUND")
+    return row
+
+
+def _public_conversation(row):
+    return dict(id=row["id"], title=row["title"],
+                createdAt=row["created_at"].isoformat(),
+                updatedAt=row["updated_at"].isoformat())
+
+
+def _save_message(conn, conversation_id, role, text, actions=(), reply=None):
+    conn.execute(
+        "INSERT INTO portal_messages(conversation_id, role, text, actions, reply) "
+        "VALUES (%s, %s, %s, %s, %s)",
+        (conversation_id, role, text, json.dumps(list(actions), ensure_ascii=False),
+         json.dumps(reply or {}, ensure_ascii=False)))
+    conn.execute("UPDATE portal_conversations SET updated_at=now() WHERE id=%s",
+                 (conversation_id,))
+
+
+def _history(conn, conversation_id):
+    rows = conn.execute(
+        "SELECT role, text FROM (SELECT role, text, id FROM portal_messages "
+        "WHERE conversation_id=%s ORDER BY id DESC LIMIT %s) recent ORDER BY id",
+        (conversation_id, _HISTORY_LIMIT)).fetchall()
+    return [{"role": r["role"], "text": r["text"]} for r in rows]
+
+
+def _title_for(text):
+    title = " ".join(text.split())[:60].strip(" .!?")
+    return title or "Новый чат"
 
 
 def validate_payload(kind, data):
@@ -496,11 +538,127 @@ def portal_blueprint(connect, ai_mode="demo", llm=None, llm_slots=None, llm_wait
     def chat_config():
         return jsonify(aiMode=ai_mode)
 
+    @bp.get("/api/chats")
+    def list_chats():
+        with connect() as conn:
+            rows = conn.execute(
+                "SELECT id, title, created_at, updated_at FROM portal_conversations "
+                "WHERE user_id=%s ORDER BY updated_at DESC", (g.account["user_id"],)).fetchall()
+            return jsonify([_public_conversation(r) for r in rows])
+
+    @bp.post("/api/chats")
+    def create_chat():
+        data = request.get_json(silent=True)
+        if data is None:
+            data = {}
+        if not isinstance(data, dict):
+            raise PortalError(400, "Ожидается JSON-объект")
+        if not set(data) <= {"title"}:
+            raise PortalError(400, "Некорректные поля")
+        title = data.get("title") or "Новый чат"
+        if (not isinstance(title, str) or "\x00" in title
+                or not 1 <= len(title.strip()) <= 120):
+            raise PortalError(400, "Название чата — от 1 до 120 символов")
+        chat_id = "chat-" + secrets.token_hex(12)
+        with connect() as conn:
+            conn.execute(
+                "INSERT INTO portal_conversations(id, user_id, title) VALUES (%s, %s, %s)",
+                (chat_id, g.account["user_id"], title.strip()))
+            row = _conversation(conn, chat_id)
+            return jsonify(_public_conversation(row)), 201
+
+    @bp.delete("/api/chats/<chat_id>")
+    def delete_chat(chat_id):
+        with connect() as conn:
+            _conversation(conn, chat_id)
+            conn.execute("DELETE FROM portal_conversations WHERE id=%s", (chat_id,))
+            return "", 204
+
+    @bp.get("/api/chats/<chat_id>/messages")
+    def chat_messages(chat_id):
+        with connect() as conn:
+            _conversation(conn, chat_id)
+            rows = conn.execute(
+                "SELECT id, role, text, actions, reply FROM portal_messages "
+                "WHERE conversation_id=%s ORDER BY id", (chat_id,)).fetchall()
+            feedback = {row["entity_id"]: row["event_type"].removeprefix("chat_") for row in conn.execute(
+                "SELECT entity_id, event_type FROM portal_events WHERE user_id=%s "
+                "AND entity_id = ANY(%s) AND event_type IN ('chat_resolved','chat_mentor')",
+                (g.account["user_id"], [row["reply"]["messageId"] for row in rows if row["reply"].get("messageId")]),
+            )}
+            return jsonify([dict(id=row["id"], role=row["role"], text=row["text"], actions=row["actions"],
+                                 **row["reply"], **({"feedback": feedback[row["reply"]["messageId"]]}
+                                     if row["reply"].get("messageId") in feedback else {})) for row in rows])
+
     @bp.post("/api/chat")
     def chat():
-        return jsonify(portal_chat.respond(
-            connect, g.account, body(), current_plan, ai_mode, llm, llm_slots, llm_wait, PortalError,
-        ))
+        data = body()
+        text, task_id = data.get("message"), data.get("taskId")
+        message_id, chat_id = data.get("messageId"), data.get("conversationId")
+        if (not set(data) <= {"message", "taskId", "messageId", "conversationId"}
+                or not isinstance(text, str) or not 1 <= len(text.strip()) <= 4000 or "\x00" in text
+                or (task_id is not None and (not isinstance(task_id, str) or len(task_id) > 64))
+                or (message_id is not None and not portal_chat.valid_message_id(message_id))
+                or (chat_id is not None and (not isinstance(chat_id, str) or not _CHAT_ID.fullmatch(chat_id)))):
+            raise PortalError(400, "Проверьте сообщение")
+        text = text.strip()
+        user_id = g.account["user_id"]
+
+        def previous_reply(conn):
+            if message_id is None:
+                return None
+            return conn.execute(
+                "SELECT m.text, m.actions, m.reply, m.conversation_id FROM portal_messages m "
+                "JOIN portal_conversations c ON c.id=m.conversation_id WHERE c.user_id=%s "
+                "AND m.reply->>'messageId'=%s", (user_id, message_id),
+            ).fetchone()
+
+        def replay(row):
+            if chat_id and chat_id != row["conversation_id"]:
+                raise PortalError(409, "Сообщение уже принадлежит другому чату", "CONFLICT")
+            return jsonify(text=row["text"], actions=row["actions"],
+                           conversationId=row["conversation_id"], **row["reply"])
+
+        with connect() as conn:
+            if chat_id:
+                _conversation(conn, chat_id)
+            previous = previous_reply(conn)
+            if previous:
+                return replay(previous)
+            history = _history(conn, chat_id) if chat_id else []
+
+        reply = portal_chat.respond(
+            connect, g.account, text, task_id, history, current_plan,
+            lambda conn, uid: flat(checklist(conn, uid)), llm, llm_slots, llm_wait, PortalError,
+        )
+        unsafe = reply["intentId"] == "unsafe"
+        with connect() as conn:
+            account = current_account(conn)
+            if account is None or account["user_id"] != user_id:
+                raise PortalError(401, "Войдите в аккаунт", "UNAUTHENTICATED")
+            adaptation.lock_account(conn, user_id)
+            previous = previous_reply(conn)
+            if previous:
+                return replay(previous)
+            if chat_id:
+                _conversation(conn, chat_id, lock=True)
+                if history != _history(conn, chat_id):
+                    raise PortalError(409, "История чата изменилась. Повторите запрос.", "CONFLICT")
+            else:
+                chat_id = "chat-" + secrets.token_hex(12)
+                conn.execute(
+                    "INSERT INTO portal_conversations(id, user_id, title) VALUES (%s, %s, %s)",
+                    (chat_id, user_id, "Новый чат" if unsafe else _title_for(portal_chat._redact_contacts(text))),
+                )
+            _save_message(conn, chat_id, "user", "[сообщение скрыто проверкой безопасности]" if unsafe else text)
+            metadata = {}
+            if message_id is not None:
+                metadata = dict(intentId=reply["intentId"], aiMode=ai_mode, messageId=message_id,
+                                sources=reply["sources"], answerMethod=reply["answerMethod"])
+                adaptation.log_event(conn, user_id, "chat_answered", message_id)
+            _save_message(conn, chat_id, "bot", reply["text"], reply["actions"], metadata)
+        return jsonify({**metadata, "intentId": reply["intentId"], "text": reply["text"],
+                        "actions": reply["actions"], "conversationId": chat_id})
 
     @bp.post("/api/chat/feedback")
     def feedback():

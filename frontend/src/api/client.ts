@@ -31,14 +31,14 @@ function resolveUrl(path: string): string {
 
 export async function apiFetch<T>(
   path: string,
-  opts: { method?: 'GET' | 'POST'; body?: unknown; idempotencyKey?: string; requestVersion?: string; schema: ZodTypeLike<T> },
+  opts: { method?: 'GET' | 'POST' | 'DELETE'; body?: unknown; idempotencyKey?: string; requestVersion?: string; schema: ZodTypeLike<T> },
 ): Promise<T> {
   const { userId, csrfToken } = useAuthStore.getState()
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (opts.idempotencyKey) headers['Idempotency-Key'] = opts.idempotencyKey
   if (opts.requestVersion) headers['X-Request-Version'] = opts.requestVersion
   if (isMockMode && userId) headers['x-user-id'] = userId
-  if (!isMockMode && csrfToken && opts.method === 'POST') headers['X-CSRF-Token'] = csrfToken
+  if (!isMockMode && csrfToken && opts.method !== undefined && opts.method !== 'GET') headers['X-CSRF-Token'] = csrfToken
 
   let res: Response
   try {

@@ -1,9 +1,8 @@
 # Avito Start: frontend + backend
 
-Рабочая ветка `merge-backend-into-frontend` создана от `frontend`
-(`84a4d9498ce10562fb7082bfe47a1977ed090455`). Сервер перенесён из `main`
-(`431b9bfbfa3ef3063eb66d607817c87f49bfa852`) в `backend/`.
-Старый `main/web` не включён. Исходный интерфейс находится в `frontend/`.
+Сборка объединяет портал адаптации и контактов из `feat/ai-buddy-adaptation-contacts`
+с ИИ-маршрутизацией и историей чатов из `merge-backend-into-frontend`.
+Фронтенд находится в `frontend/`, сервер и AI в `backend/`.
 
 ## Запуск через Docker
 
@@ -78,10 +77,7 @@ node node_modules/vite/bin/vite.js --config vite.integrated.config.ts --port 517
 
 ```powershell
 git status --short --branch
-git diff --check frontend --
-git diff --stat frontend --
-git diff frontend -- frontend/
-python scripts/verify_transfer.py
+git diff --check
 
 cd frontend
 npm run build
@@ -126,3 +122,17 @@ node scripts/browser-smoke.cjs
 чтобы включить браузерные шаги наставника. Используйте выделенную демобазу.
 Контракты находятся в `backend/contracts/openapi.yaml`, правила чата и измерений —
 в `backend/docs/sdd/portal.md`.
+
+## База знаний
+
+[Сводка кейса, чек-лист и открытые материалы Авито](docs/avito-case-knowledge.md)
+хранятся в репозитории и доступны для чтения. Поиск и чат используют
+[каталог материалов](backend/server/fixtures/knowledge_base.json), который
+`server.store seed` загружает в PostgreSQL, и
+[чек-лист адаптации](backend/server/fixtures/checklist_catalog.json).
+Правила отбора материалов и ограничения описаны в
+[спецификации портала](backend/docs/sdd/portal.md).
+
+Чат сохраняет сообщения, источники и обратную связь на сервере.
+Для внешнего ИИ настройте `AI_MODE=live`, `AI_BASE_URL`, `AI_MODEL` и `AI_API_KEY`.
+В деморежиме доступны серверные сценарии и поиск по той же базе знаний.

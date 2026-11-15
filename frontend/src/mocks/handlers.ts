@@ -94,7 +94,81 @@ function makeRequest(
 const Body = {
   status: z.object({ status: ItemStatusSchema }),
   reject: z.object({ comment: z.string().max(300).optional() }),
-  chat: z.object({ message: z.string().min(1).max(500) }),
+  chat: z.object({ message: z.string().min(1).max(500), conversationId: z.string().optional() }),
+}
+
+/* Мок постоянных чатов: в памяти, по аналогии с серверными portal_conversations. */
+interface MockChatMessage {
+  id: number
+  role: 'user' | 'bot'
+  text: string
+  actions?: { id: string; label: string; kind: 'navigate' | 'contact'; target: string | null }[]
+}
+interface MockChat {
+  id: string
+  userId: string
+  title: string
+  createdAt: string
+  updatedAt: string
+  messages: MockChatMessage[]
+}
+const MOCK_CHAT_KEY = 'ai-buddy-mock-chats-v1'
+
+function isMockChat(value: unknown): value is MockChat {
+  if (!value || typeof value !== 'object') return false
+  const chat = value as Partial<MockChat>
+  return typeof chat.id === 'string'
+    && typeof chat.userId === 'string'
+    && typeof chat.title === 'string'
+    && typeof chat.createdAt === 'string'
+    && typeof chat.updatedAt === 'string'
+    && Array.isArray(chat.messages)
+    && chat.messages.every((message) => message
+      && typeof message.id === 'number'
+      && (message.role === 'user' || message.role === 'bot')
+      && typeof message.text === 'string'
+      && (message.actions === undefined || Array.isArray(message.actions)))
+}
+
+function loadMockChats(): MockChat[] {
+  if (typeof localStorage === 'undefined') return []
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(MOCK_CHAT_KEY) ?? '[]')
+    return Array.isArray(value) ? value.filter(isMockChat) : []
+  } catch {
+    return []
+  }
+}
+
+const mockChats: MockChat[] = loadMockChats()
+let mockChatSeq = mockChats.reduce((max, chat) => {
+  const sequence = Number.parseInt(chat.id.slice('chat-'.length), 16)
+  return Number.isFinite(sequence) ? Math.max(max, sequence) : max
+}, 0)
+
+function persistMockChats(): void {
+  if (typeof localStorage === 'undefined') return
+  try {
+    localStorage.setItem(MOCK_CHAT_KEY, JSON.stringify(mockChats))
+  } catch {
+    /* browser storage is optional in the mock environment */
+  }
+}
+
+export function resetMockChats(): void {
+  mockChats.splice(0, mockChats.length)
+  mockChatSeq = 0
+  if (typeof localStorage !== 'undefined') localStorage.removeItem(MOCK_CHAT_KEY)
+}
+
+function ownedChat(request: Request, id: string): MockChat | null {
+  const user = currentUser(request)
+  const chat = mockChats.find((c) => c.id === id)
+  return user && chat && chat.userId === user.id ? chat : null
+}
+
+function chatTitle(text: string): string {
+  return text.replace(/\s+/g, ' ').trim().slice(0, 60) || 'Новый чат'
 }
 
 export const handlers = [
@@ -427,6 +501,63 @@ export const handlers = [
     })
   }),
 
+  /* ---------- Чаты: список, создание, удаление, история ---------- */
+  http.get('/api/chats', ({ request }) => {
+    const denied = authError(request)
+    if (denied) return denied
+    const user = currentUser(request)!
+    return HttpResponse.json(
+      mockChats
+        .filter((c) => c.userId === user.id)
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+        .map(({ id, title, createdAt, updatedAt }) => ({ id, title, createdAt, updatedAt })),
+    )
+  }),
+
+  http.post('/api/chats', async ({ request }) => {
+    const denied = authError(request)
+    if (denied) return denied
+    const body = await request.json().catch(() => ({}))
+    const parsed = z.object({ title: z.string().trim().min(1).max(120).optional() })
+      .strict()
+      .safeParse(body)
+    if (!parsed.success) return errorJson(400, 'Некорректное название чата', 'BAD_REQUEST')
+    const user = currentUser(request)!
+    const now = new Date().toISOString()
+    const chat: MockChat = {
+      id: `chat-${(++mockChatSeq).toString(16).padStart(24, '0')}`,
+      userId: user.id,
+      title: parsed.data.title || 'Новый чат',
+      createdAt: now,
+      updatedAt: now,
+      messages: [],
+    }
+    mockChats.push(chat)
+    persistMockChats()
+    return HttpResponse.json(
+      { id: chat.id, title: chat.title, createdAt: chat.createdAt, updatedAt: chat.updatedAt },
+      { status: 201 },
+    )
+  }),
+
+  http.delete('/api/chats/:id', ({ request, params }) => {
+    const denied = authError(request)
+    if (denied) return denied
+    const chat = ownedChat(request, String(params.id))
+    if (!chat) return errorJson(404, 'Чат не найден', 'NOT_FOUND')
+    mockChats.splice(mockChats.indexOf(chat), 1)
+    persistMockChats()
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.get('/api/chats/:id/messages', ({ request, params }) => {
+    const denied = authError(request)
+    if (denied) return denied
+    const chat = ownedChat(request, String(params.id))
+    if (!chat) return errorJson(404, 'Чат не найден', 'NOT_FOUND')
+    return HttpResponse.json(chat.messages)
+  }),
+
   /* ---------- Чат с детерминированным ботом ---------- */
   http.post('/api/chat', async ({ request }) => {
     const denied = authError(request)
@@ -435,6 +566,22 @@ export const handlers = [
     if (!parsed.success) return errorJson(400, 'Пустое сообщение', 'BAD_REQUEST')
     return withSimulation(() => {
       const user = currentUser(request)!
+      let chat: MockChat | null = null
+      if (parsed.data.conversationId) {
+        chat = ownedChat(request, parsed.data.conversationId)
+        if (!chat) return errorJson(404, 'Чат не найден', 'NOT_FOUND')
+      } else {
+        const now = new Date().toISOString()
+        chat = {
+          id: `chat-${(++mockChatSeq).toString(16).padStart(24, '0')}`,
+          userId: user.id,
+          title: chatTitle(parsed.data.message),
+          createdAt: now,
+          updatedAt: now,
+          messages: [],
+        }
+        mockChats.push(chat)
+      }
       const checklist = buildChecklist(user.id)
       const next = checklist.flatMap((s) => s.items).find((i) => i.status !== 'done')
       const mentor = contactsFixture.find((c) => c.id === 'c-mentor')
@@ -442,13 +589,17 @@ export const handlers = [
         chatIntentsFixture as unknown as BotIntent[],
         chatFallbackFixture as unknown as BotFallback,
       )
-      return HttpResponse.json(
-        engine.reply(parsed.data.message, {
-          userName: user.name.split(' ')[0] ?? user.name,
-          mentorName: mentor?.name ?? 'наставница',
-          nextStepTitle: next?.title ?? null,
-        }),
-      )
+      const reply = engine.reply(parsed.data.message, {
+        userName: user.name.split(' ')[0] ?? user.name,
+        mentorName: mentor?.name ?? 'наставница',
+        nextStepTitle: next?.title ?? null,
+      })
+      const base = chat.messages.length
+      chat.messages.push({ id: base + 1, role: 'user', text: parsed.data.message })
+      chat.messages.push({ id: base + 2, role: 'bot', text: reply.text, actions: reply.actions })
+      chat.updatedAt = new Date().toISOString()
+      persistMockChats()
+      return HttpResponse.json({ ...reply, conversationId: chat.id })
     })
   }),
 ]

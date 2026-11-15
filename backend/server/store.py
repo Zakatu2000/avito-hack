@@ -51,7 +51,10 @@ def migrate(conn):
         cur.execute("SELECT name, checksum FROM schema_migrations ORDER BY name")
         applied = dict(cur.fetchall())
         files = sorted(MIGRATIONS.glob("*.sql"))
-        if list(applied) != [p.name for p in files[:len(applied)]]:
+        expected = [p.name for p in files[:len(applied)]]
+        parallel = (expected and expected[-1] == "008_portal_adaptation.sql"
+                    and list(applied) == [*expected[:-1], "008_portal_conversations.sql"])
+        if list(applied) != expected and not parallel:
             raise ValueError("Migration history does not match local files.")
         for path in files:
             sql = path.read_bytes()

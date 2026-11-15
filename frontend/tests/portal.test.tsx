@@ -47,6 +47,7 @@ beforeEach(() => {
     http.get('*/api/kb/search', () => json([hit])),
     http.get('*/api/kb', () => json([])),
     http.get('*/api/contacts', () => json([])),
+    http.get('*/api/chats', () => json([])),
   )
 })
 

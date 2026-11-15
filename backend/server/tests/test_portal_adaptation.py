@@ -241,7 +241,8 @@ def test_live_portal_revalidates_facts_and_session(db, database_url):
     assert send().status_code == 401
 
 
-def test_upgrade_preserves_007_data(unapproved_database, tmp_path, monkeypatch):
+@pytest.mark.parametrize("previous_008", [None, "adaptation", "conversations"])
+def test_upgrade_preserves_portal_data(unapproved_database, tmp_path, monkeypatch, previous_008):
     import shutil
     from psycopg.rows import dict_row
     from server import store
@@ -249,6 +250,9 @@ def test_upgrade_preserves_007_data(unapproved_database, tmp_path, monkeypatch):
 
     source = store.MIGRATIONS
     for path in sorted(source.glob("*.sql"))[:7]:
+        shutil.copy(path, tmp_path / path.name)
+    if previous_008:
+        path = source / f"008_portal_{previous_008}.sql"
         shutil.copy(path, tmp_path / path.name)
     monkeypatch.setattr(store, "MIGRATIONS", tmp_path)
     # The fixture provides an empty temporary database. Seed is guarded in
@@ -262,6 +266,9 @@ def test_upgrade_preserves_007_data(unapproved_database, tmp_path, monkeypatch):
     conn.execute("INSERT INTO portal_progress(user_id,item_id,status) VALUES (%s,'wk1-team','done')", (user_id,))
     conn.execute("INSERT INTO portal_requests(id,user_id,status,data) VALUES ('legacy-ticket',%s,'draft',%s)",
                  (user_id, '{"kind":"leave","history":[]}'))
+    if previous_008 == "conversations":
+        conn.execute("INSERT INTO portal_conversations(id,user_id,title) VALUES ('old-chat',%s,'История')", (user_id,))
+        conn.execute("INSERT INTO portal_messages(conversation_id,role,text) VALUES ('old-chat','user','Привет')")
     conn.commit()
     monkeypatch.setattr(store, "MIGRATIONS", source)
     store.migrate(conn)
@@ -271,3 +278,7 @@ def test_upgrade_preserves_007_data(unapproved_database, tmp_path, monkeypatch):
     assert row == {"status": "done", "started_at": None, "completed_at": None}
     row = conn.execute("SELECT status,data FROM portal_requests WHERE id='legacy-ticket'").fetchone()
     assert row == {"status": "draft", "data": {"kind": "leave", "history": []}}
+    if previous_008 == "conversations":
+        assert conn.execute("SELECT text, reply FROM portal_messages WHERE conversation_id='old-chat'").fetchone() == {
+            "text": "Привет", "reply": {},
+        }

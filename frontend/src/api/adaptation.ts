@@ -101,9 +101,9 @@ export function useChatConfig() {
 
 export function usePortalChat() {
   return useMutation({
-    mutationFn: ({ message, messageId, taskId }: { message: string; messageId: string; taskId?: string }) =>
+    mutationFn: ({ message, messageId, taskId, conversationId }: { message: string; messageId: string; taskId?: string; conversationId?: string }) =>
       apiFetch('/api/chat', {
-        method: 'POST', body: isMockMode ? { message } : { message, messageId, taskId }, schema: ChatReplySchema,
+        method: 'POST', body: isMockMode ? { message } : { message, messageId, taskId, conversationId }, schema: ChatReplySchema,
       }),
   })
 }

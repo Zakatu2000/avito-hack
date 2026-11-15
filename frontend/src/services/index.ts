@@ -2,7 +2,10 @@ import { z } from 'zod'
 import { apiFetch } from '../api/client'
 import {
   AccessRequestInputSchema,
+  ChatHistorySchema,
+  ChatListSchema,
   ChatReplySchema,
+  ChatSummarySchema,
   ChecklistSchema,
   ContactListSchema,
   InternListSchema,
@@ -16,7 +19,9 @@ import {
   PendingItemListSchema,
   type PendingItem,
   type AccessRequestInput,
+  type ChatHistoryMessage,
   type ChatReply,
+  type ChatSummary,
   type Checklist,
   type Contact,
   type InternSummary,
@@ -62,7 +67,11 @@ export interface BuddyService {
   getInterns(): Promise<InternSummary[]>
   getPendingItems(): Promise<PendingItem[]>
   approveChecklistItem(itemId: string, userId: string): Promise<PendingItem[]>
-  sendChatMessage(message: string): Promise<ChatReply>
+  sendChatMessage(message: string, conversationId?: string | null): Promise<ChatReply>
+  listChats(): Promise<ChatSummary[]>
+  createChat(title?: string): Promise<ChatSummary>
+  deleteChat(id: string): Promise<void>
+  getChatMessages(id: string): Promise<ChatHistoryMessage[]>
 }
 
 export const service: BuddyService = {
@@ -107,6 +116,21 @@ export const service: BuddyService = {
       body: { userId },
       schema: PendingItemListSchema,
     }),
-  sendChatMessage: (message) =>
-    apiFetch('/api/chat', { method: 'POST', body: { message }, schema: ChatReplySchema }),
+  sendChatMessage: (message, conversationId) =>
+    apiFetch('/api/chat', {
+      method: 'POST',
+      body: conversationId ? { message, conversationId } : { message },
+      schema: ChatReplySchema,
+    }),
+  listChats: () => apiFetch('/api/chats', { schema: ChatListSchema }),
+  createChat: (title) =>
+    apiFetch('/api/chats', {
+      method: 'POST',
+      body: title ? { title } : {},
+      schema: ChatSummarySchema,
+    }),
+  deleteChat: async (id) => {
+    await apiFetch(`/api/chats/${id}`, { method: 'DELETE', schema: z.nullable(z.unknown()) })
+  },
+  getChatMessages: (id) => apiFetch(`/api/chats/${id}/messages`, { schema: ChatHistorySchema }),
 }

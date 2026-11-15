@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll } from 'vitest'
-import { handlers } from '../src/mocks/handlers'
+import { handlers, resetMockChats } from '../src/mocks/handlers'
 import { resetDb } from '../src/mocks/db'
 import { useAuthStore } from '../src/stores/auth'
 import { useChatStore } from '../src/stores/chat'
@@ -20,6 +20,7 @@ afterEach(() => {
   server.resetHandlers()
   localStorage.clear()
   resetDb()
+  resetMockChats()
   useAuthStore.setState({ userId: null })
   useChatStore.getState().reset()
   useDevStore.setState({ failureMode: 'off', latencyOverrideMs: 0 })

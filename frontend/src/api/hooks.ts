@@ -148,8 +148,4 @@ export function useApproveChecklistItem() {
   })
 }
 
-export function useSendChatMessage() {
-  return useMutation({ mutationFn: (message: string) => service.sendChatMessage(message) })
-}
-
 export type { AccessSystem, Request }

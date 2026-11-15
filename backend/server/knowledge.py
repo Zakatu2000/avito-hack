@@ -1,6 +1,8 @@
 """Deterministic, scoped PostgreSQL retrieval with source citations."""
 import re
 
+MIN_RELEVANCE_SCORE = 0.045
+
 TIER_BY_SOURCE_TYPE = {
     "normative": "NORMATIVE",
     "reference": "PRIMARY_PLAYBOOK",
@@ -23,8 +25,8 @@ _SCOPE = """
 
 
 def _ts_query(text):
-    terms = re.findall(r"[^\W_]{2,}", (text or "").casefold(), flags=re.UNICODE)[:12]
-    return " OR ".join(f'"{term}"' for term in terms)
+    terms = re.findall(r"[0-9a-zа-яё]{2,}", (text or "").casefold())
+    return " | ".join(list(dict.fromkeys(terms))[:12]) or None
 
 
 def _citation(row):
@@ -43,21 +45,22 @@ def _citation(row):
     }
 
 
-def search(cur, query, *, track=None, role="intern", category=None, task_id=None, limit=4):
+def search(cur, query, *, track=None, role="intern", category=None, task_id=None, limit=4, min_rank=0):
     tsq = _ts_query(query)
     if not tsq:
         return []
     rows = cur.execute(
         f"""
-        WITH query AS (SELECT websearch_to_tsquery('russian', %(query)s) AS terms)
+        WITH query AS (SELECT to_tsquery('russian', %(query)s) AS terms)
         SELECT {_COLUMNS}, ts_rank(c.fts, query.terms) AS rank
         FROM kb_chunks c JOIN kb_documents d ON d.id = c.doc_id CROSS JOIN query
         WHERE {_SCOPE} AND c.fts @@ query.terms
+          AND ts_rank(c.fts, query.terms) >= %(min_rank)s
           AND (%(category)s::text IS NULL OR d.source_type = %(category)s)
           AND (%(task)s::text IS NULL OR c.checklist_refs ? %(task)s)
         ORDER BY rank DESC, c.id LIMIT %(limit)s
         """,
-        dict(query=tsq, track=track, role=role, category=category, task=task_id, limit=limit),
+        dict(query=tsq, track=track, role=role, category=category, task=task_id, limit=limit, min_rank=min_rank),
     ).fetchall()
     return [_citation(row) for row in rows]
 

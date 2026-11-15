@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { isMockMode } from './api/auth'
-import { useChatStore } from './stores/chat'
 import { Button } from './components/ui/Button'
 import { useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
@@ -52,10 +51,9 @@ export function App() {
     if (!isMockMode) void useAuthStore.getState().initialize()
   }, [])
   useEffect(() => {
-    if (!isMockMode) {
-      queryClient.clear()
-      useChatStore.getState().reset()
-    }
+    // История чатов живёт на сервере и привязана к аккаунту: обновление
+    // страницы её не сбрасывает. Сбрасываем только кеши react-query.
+    if (!isMockMode) queryClient.clear()
   }, [userId])
   if (!ready) return (
     <main className="login" aria-live="polite">

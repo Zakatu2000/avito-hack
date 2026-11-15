@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAdaptationPlan, useChatConfig, useChatFeedback, usePortalChat } from '../api/adaptation'
 import { isMockMode } from '../api/auth'
@@ -7,8 +8,11 @@ import { useContacts } from '../api/hooks'
 import type { ChatAction } from '../api/schemas'
 import { Button } from '../components/ui/Button'
 import { Textarea } from '../components/ui/Input'
+import { service } from '../services'
 import { useAuthStore } from '../stores/auth'
 import { useChatStore, type ChatMessage } from '../stores/chat'
+
+const EMPTY_MESSAGES: ChatMessage[] = []
 
 const SUGGESTIONS = [
   'Как оформить отгул?', 'Нужен доступ к Jira', 'Что дальше по плану?',
@@ -60,10 +64,15 @@ function Feedback({ message }: { message: ChatMessage }) {
 }
 
 export function ChatPage() {
-  const messages = useChatStore((state) => state.messages)
+  const userId = useAuthStore((state) => state.userId)
+  const chatOwner = useChatStore((state) => state.userId)
+  const activeId = useChatStore((state) => state.activeId)
+  const storedMessages = useChatStore((state) => state.messages)
+  const messages = isMockMode || chatOwner === userId ? storedMessages : EMPTY_MESSAGES
+  const conversationId = chatOwner === userId ? activeId ?? undefined : undefined
+  const cache = useQueryClient()
   const change = useChatStore((state) => state.changeMessage)
   const append = useChatStore((state) => state.append)
-  const userId = useAuthStore((state) => state.userId)
   const config = useChatConfig()
   const plan = useAdaptationPlan()
   const sendChat = usePortalChat()
@@ -77,6 +86,59 @@ export function ChatPage() {
   const pending = useRef(false)
   const composing = useRef(false)
   const maxLength = isMockMode ? 500 : 4000
+  const chats = useQuery({
+    queryKey: ['chats', userId],
+    queryFn: service.listChats,
+    enabled: !isMockMode && !!userId,
+  })
+  const history = useQuery({
+    queryKey: ['chat-messages', userId, conversationId],
+    queryFn: () => service.getChatMessages(conversationId!),
+    enabled: !isMockMode && !!userId && !!conversationId,
+    refetchOnWindowFocus: false,
+    staleTime: Infinity,
+  })
+  const refreshChats = () => void cache.invalidateQueries({ queryKey: ['chats', userId] })
+  const removeChat = useMutation({
+    mutationFn: service.deleteChat,
+    onSuccess: (_reply, id) => {
+      if (useAuthStore.getState().userId !== userId) return
+      if (userId && id === useChatStore.getState().activeId) {
+        useChatStore.getState().selectChat(userId, null)
+      }
+      cache.removeQueries({ queryKey: ['chat-messages', userId, id] })
+      refreshChats()
+    },
+  })
+  const selectChat = (id: string | null) => {
+    if (!userId) return
+    if (id) void cache.invalidateQueries({ queryKey: ['chat-messages', userId, id] })
+    setDraft('')
+    follow.current = true
+    useChatStore.getState().selectChat(userId, id)
+  }
+
+  useLayoutEffect(() => {
+    if (!isMockMode && userId && chatOwner !== userId) {
+      useChatStore.getState().selectChat(userId, null)
+    }
+  }, [userId, chatOwner])
+
+  useEffect(() => {
+    if (!history.data || !userId || !conversationId) return
+    useChatStore.getState().hydrate(userId, conversationId, history.data.map((entry) => ({
+      id: String(entry.id), role: entry.role, text: entry.text, actions: entry.actions,
+      sources: entry.sources, answerMethod: entry.answerMethod, replyId: entry.messageId,
+      feedback: entry.feedback,
+    })))
+  }, [history.data, history.dataUpdatedAt, userId, conversationId])
+
+  useEffect(() => {
+    if (userId && conversationId && (history.error as { status?: number } | null)?.status === 404) {
+      useChatStore.getState().selectChat(userId, null)
+    }
+  }, [history.error, userId, conversationId])
+
 
   useLayoutEffect(() => {
     const input = field.current
@@ -91,7 +153,7 @@ export function ChatPage() {
 
   const send = (text: string, retry?: ChatMessage) => {
     const message = text.trim()
-    if (!message || message.length > maxLength || pending.current) return
+    if (!message || message.length > maxLength || (pending.current || history.isFetching)) return
     pending.current = true
     const id = retry?.id ?? (globalThis.crypto?.randomUUID?.() ?? 'message-' + Date.now() + '-' + Math.random().toString(36).slice(2))
     const context = retry ? retry.taskId : taskId
@@ -101,9 +163,14 @@ export function ChatPage() {
       setDraft('')
     }
     follow.current = true
-    sendChat.mutate({ message, messageId: id, taskId: context }, {
+    sendChat.mutate({ message, messageId: id, taskId: context, conversationId }, {
       onSuccess: (reply) => {
         if (useAuthStore.getState().userId !== userId) return
+        if (!isMockMode && reply.conversationId) {
+          useChatStore.getState().activate(reply.conversationId)
+          void cache.invalidateQueries({ queryKey: ['chat-messages', userId, reply.conversationId] })
+          refreshChats()
+        }
         append({ id: 'reply-' + id, role: 'bot', text: reply.text, actions: reply.actions,
           sources: reply.sources, answerMethod: reply.answerMethod, replyId: reply.messageId })
       },
@@ -121,7 +188,25 @@ export function ChatPage() {
       <h1 className="heading-l">Чат с <span className="hl hl-green">AI-buddy</span></h1>
       {mode && <p className="body-secondary">{mode}</p>}
     </div></div>
+    <div className="chat-layout">
+    {!isMockMode && <aside className="chat-list" aria-label="Список чатов">
+      <Button size="s" onClick={() => selectChat(null)} disabled={sendChat.isPending}>+ Новый чат</Button>
+      <div className="chat-list__items">
+        {chats.data?.map((chat) => <div key={chat.id}
+          className={'chat-list__item' + (chat.id === conversationId ? ' chat-list__item--active' : '')}>
+          <button type="button" className="chat-list__open" onClick={() => selectChat(chat.id)}
+            disabled={sendChat.isPending}>{chat.title}</button>
+          <button type="button" className="chat-list__delete" aria-label={'Удалить чат «' + chat.title + '»'}
+            onClick={() => removeChat.mutate(chat.id)} disabled={removeChat.isPending || sendChat.isPending}>×</button>
+        </div>)}
+        {chats.isError && <p role="alert">Не удалось загрузить список чатов.{' '}
+          <button type="button" onClick={() => void chats.refetch()}>Повторить</button></p>}
+        {removeChat.isError && <p role="alert">{getErrorMessage(removeChat.error, 'Не удалось удалить чат')}</p>}
+      </div>
+    </aside>}
     <section className="chat" aria-label="AI-buddy">
+      {history.isError && <p role="alert">Не удалось загрузить историю.{' '}
+        <button type="button" onClick={() => void history.refetch()}>Повторить</button></p>}
       <div className="chat__log" ref={log} role="log" aria-label="История сообщений" aria-live="polite"
         tabIndex={0} onScroll={(event) => {
           const el = event.currentTarget
@@ -147,7 +232,7 @@ export function ChatPage() {
       {taskId && <div className="page__actions chat__context"><span>Задача: {task?.title ?? taskId}</span>
         <Button size="s" variant="secondary" onClick={() => setParams({})}>Убрать задачу</Button></div>}
       <div className="chat__suggestions" aria-label="Подсказки">
-        {SUGGESTIONS.map((suggestion) => <Button key={suggestion} size="s" variant="secondary" onClick={() => send(suggestion)} disabled={sendChat.isPending}>{suggestion}</Button>)}
+        {SUGGESTIONS.map((suggestion) => <Button key={suggestion} size="s" variant="secondary" onClick={() => send(suggestion)} disabled={sendChat.isPending || history.isFetching}>{suggestion}</Button>)}
       </div>
       <form className="chat__form" onSubmit={(event) => { event.preventDefault(); send(draft) }}>
         <Textarea ref={field} rows={2} name="chat-message" aria-label="Сообщение боту"
@@ -160,8 +245,9 @@ export function ChatPage() {
               event.preventDefault(); send(draft)
             }
           }} />
-        <Button type="submit" loading={sendChat.isPending} disabled={!draft.trim()}>Отправить</Button>
+        <Button type="submit" loading={sendChat.isPending} disabled={!draft.trim() || history.isFetching}>Отправить</Button>
       </form>
     </section>
+    </div>
   </div>
 }

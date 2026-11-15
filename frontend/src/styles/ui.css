@@ -942,6 +942,82 @@ select.field__control {
   flex: 1;
 }
 
+/* список чатов */
+.chat-layout {
+  display: flex;
+  gap: var(--space-5);
+  align-items: flex-start;
+}
+.chat-list {
+  width: 240px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.chat-list__items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.chat-list__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  border-radius: var(--radius-m);
+  border: 1px solid var(--surface-border);
+  background: var(--surface);
+  padding: 4px 6px 4px 12px;
+}
+.chat-list__item--active {
+  border-color: var(--accent);
+  background: var(--accent-surface);
+}
+.chat-list__open {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-family: var(--font-family);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 6px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-list__delete {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.chat-list__delete:hover:not(:disabled) {
+  background: var(--red-50);
+  color: var(--red-500);
+}
+.chat-list__empty {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+@media (max-width: 900px) {
+  .chat-layout {
+    flex-direction: column;
+  }
+  .chat-list {
+    width: 100%;
+  }
+}
+
 /* метрики */
 .metric {
   display: flex;
@@ -1301,6 +1377,8 @@ select.field__control {
 /* Portal plan and conversation */
 .chat-page .chat {
   --chat-padding: var(--space-4);
+  flex: 1 1 auto;
+  min-width: 0;
   width: 100%;
   max-width: 920px;
   height: clamp(28rem, calc(100dvh - 13rem), 48rem);
@@ -1355,7 +1433,7 @@ select.field__control {
 .plan-stage summary, details.card > summary { cursor: pointer; }
 
 @media (max-width: 560px) {
-  .chat-page .chat { --chat-padding: var(--space-3); height: clamp(22rem, calc(100dvh - 12rem), 42rem); }
+  .chat-page .chat { flex: none; --chat-padding: var(--space-3); height: clamp(22rem, calc(100dvh - 12rem), 42rem); }
   .chat-page .chat__suggestions { flex-wrap: nowrap; overflow-x: auto; padding-block-end: var(--space-1); }
   .chat-page .chat__suggestions > * { flex: 0 0 auto; }
   .chat-page .msg { max-width: 94%; }

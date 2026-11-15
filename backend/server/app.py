@@ -166,6 +166,21 @@ def create_app(config=None):
         }[error.status_code]
         return jsonify(code=code, message=message), error.status_code
 
+    @app.errorhandler(Exception)
+    def unexpected(error):
+        # Keep real HTTP errors (404, 405, 413, ...) intact; log the rest with a
+        # request id and answer a safe JSON 500 instead of an HTML stack page.
+        from werkzeug.exceptions import HTTPException
+        if isinstance(error, HTTPException):
+            return error
+        reference = secrets.token_hex(8)
+        app.logger.exception("unhandled error %s on %s %s",
+                             reference, request.method, request.path,
+                             exc_info=error)
+        return jsonify(code="internal_error",
+                       message=f"Внутренняя ошибка сервиса. Попробуйте ещё раз "
+                               f"(код {reference})"), 500
+
     @app.get("/health")
     def health():
         with connect() as conn:
