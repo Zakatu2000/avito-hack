@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$PostgresBin = ''
+    [string]$PostgresBin = '',
+    [switch]$OpenBrowser
 )
 
 $ErrorActionPreference = 'Stop'
@@ -34,19 +35,53 @@ function Assert-FreePort {
     }
 }
 
+function Test-PreviewHealth {
+    try {
+        $health = Invoke-RestMethod -Uri "$origin/health" -TimeoutSec 2
+        $page = Invoke-WebRequest -Uri $origin -TimeoutSec 2 -UseBasicParsing
+        return $health.status -eq 'ok' -and $page.StatusCode -eq 200
+    } catch {
+        return $false
+    }
+}
+
+function Get-PreviewCommandLine {
+    param([int]$Port)
+    $listener = Get-NetTCPConnection -State Listen -LocalAddress '127.0.0.1' -LocalPort $Port `
+        -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (!$listener) { return '' }
+    $process = Get-CimInstance Win32_Process -Filter ("ProcessId=" + $listener.OwningProcess)
+    return [string]$process.CommandLine
+}
+
+function Test-ExistingPreview {
+    $api = Get-PreviewCommandLine $apiPort
+    $web = Get-PreviewCommandLine $webPort
+    $postgres = (Get-PreviewCommandLine $dbPort).Replace('/', '\')
+    $dataArgument = [regex]::Escape($pgData.Replace('/', '\'))
+    return ($api -like "*-m waitress --listen=127.0.0.1:$apiPort --call server.app:create_app*") -and
+        ($web -like "*vite/bin/vite.js --config vite.integrated.config.ts*--port $webPort*") -and
+        ($postgres -match ('-D\s+"?' + $dataArgument + '"?(?:\s|$)')) -and
+        (Test-PreviewHealth)
+}
+
+function Open-PreviewPage {
+    if (!$OpenBrowser) { return }
+    try {
+        Start-Process -FilePath $origin
+    } catch {
+        Write-Warning "Could not open the browser. Open $origin manually."
+    }
+}
+
 function Wait-ForPreview {
     param([System.Diagnostics.Process[]]$Processes)
     for ($attempt = 0; $attempt -lt 40; $attempt++) {
         foreach ($process in $Processes) {
             if ($process.HasExited) { throw 'A preview process stopped during startup.' }
         }
-        try {
-            $health = Invoke-RestMethod -Uri "$origin/health" -TimeoutSec 2
-            $page = Invoke-WebRequest -Uri $origin -TimeoutSec 2 -UseBasicParsing
-            if ($health.status -eq 'ok' -and $page.StatusCode -eq 200) { return }
-        } catch {
-            Start-Sleep -Milliseconds 500
-        }
+        if (Test-PreviewHealth) { return }
+        Start-Sleep -Milliseconds 500
     }
     throw "The preview did not become available at $origin."
 }
@@ -58,6 +93,11 @@ $savedEnv = @{}
 foreach ($key in $envKeys) { $savedEnv[$key] = [Environment]::GetEnvironmentVariable($key, 'Process') }
 
 try {
+    if (Test-ExistingPreview) {
+        Write-Host "AI Buddy is already running at $origin."
+        Open-PreviewPage
+        return
+    }
     Assert-FreePort $apiPort
     Assert-FreePort $webPort
     $node = (Get-Command node.exe -ErrorAction Stop).Source
@@ -166,6 +206,7 @@ try {
 
     Wait-ForPreview $services
     Write-Host "AI Buddy is ready at $origin. Press Ctrl+C to stop."
+    Open-PreviewPage
     for (;;) {
         Start-Sleep -Seconds 1
         if ($services | Where-Object { $_.HasExited }) { throw 'A preview process stopped.' }
