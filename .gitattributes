@@ -1,3 +1,6 @@
 # Keep backend text and SQL migration checksums stable across Windows/Linux.
 # Automatic detection preserves binary fixtures (PNG/PDF/DOCX).
 backend/** text=auto eol=lf
+
+# MSW regenerates the checked-in worker with LF during npm install.
+frontend/public/mockServiceWorker.js text eol=lf

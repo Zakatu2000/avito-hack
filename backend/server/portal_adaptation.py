@@ -28,6 +28,7 @@ EQUIVALENT_ITEMS = {"common-03": "wk1-team"}
 STATUS = {"available": "not_started", "blocked": "not_started",
           "in_progress": "in_progress", "evidence_pending": "pending_approval", "completed": "done"}
 ACTIVE_SUPPORT = ("sent", "in_progress", "resolved")
+ACCESS_DESTINATIONS = {"confluence": "Confluence", "jira": "Jira", "repo": "репозиторию"}
 
 
 class AdaptationConflict(Exception):
@@ -165,21 +166,29 @@ def _blockers(item, by_id, grants, tickets):
     missing_dependencies = [by_id[dep]["title"] if dep in by_id else dep
                             for dep in item["dependencies"] if by_id.get(dep, {}).get("status") != "done"]
     if missing_dependencies:
-        blockers.append(dict(reason="Сначала выполните: " + ", ".join(missing_dependencies), action="/timeline"))
+        blockers.append(dict(reason="Сначала выполните: " + ", ".join(missing_dependencies),
+                             action="/timeline", actionLabel="Открыть путь адаптации"))
     for system in sorted(set(item["requiredAccess"]) - grants):
         pending = next((r for r in tickets if r["kind"] == "access" and
                         r["payload"]["system"] == system and r["status"] in ("sent", "approving")), None)
+        destination = ACCESS_DESTINATIONS.get(system, system)
         blockers.append(dict(
             reason=f"Доступ {system} ожидает выдачи" if pending else f"Нет действующего доступа: {system}",
             action="/requests#" + pending["id"] if pending else url("/requests/new/access", system=system, task=item_id),
+            actionLabel=f"Проверить заявку на доступ к {destination}" if pending else f"Запросить доступ к {destination}",
         ))
     for ticket in tickets:
         if ticket.get("taskId") == item_id and ticket["kind"] == "technical_support" and ticket["status"] in ACTIVE_SUPPORT:
-            blockers.append(dict(reason="Техническое обращение ожидает закрытия", action="/requests#" + ticket["id"]))
+            blockers.append(dict(reason="Техническое обращение ожидает закрытия",
+                                 action="/requests#" + ticket["id"],
+                                 actionLabel=f'Открыть техобращение «{ticket["payload"]["title"]}»'))
     if item["status"] == "pending_approval":
-        blockers.append(dict(reason="Ожидается подтверждение наставника", action="/contacts"))
+        blockers.append(dict(reason="Ожидается подтверждение наставника",
+                             action="/contacts", actionLabel="Контакты наставника"))
     if not item["canWork"]:
-        blockers.append(dict(reason="Требуется участие наставника", action=url("/requests/new/mentor_consultation", task=item_id)))
+        blockers.append(dict(reason="Требуется участие наставника",
+                             action=url("/requests/new/mentor_consultation", task=item_id),
+                             actionLabel="Запросить консультацию"))
     return blockers
 
 

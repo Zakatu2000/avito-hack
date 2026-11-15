@@ -6,6 +6,7 @@ from server.portal_chat import (
     _IDENTITY_RE,
     _TASK_HELP_RE,
     _WELLBEING_MARKERS,
+    _blocker_reply,
 )
 
 
@@ -28,3 +29,10 @@ def test_open_task_help_requests_clarification_not_a_random_definition():
 def test_work_fatigue_routes_to_human_support():
     assert classify("Я устал работать") == "mentor"
     assert any(marker in "я устал работать" for marker in _WELLBEING_MARKERS)
+
+def test_duplicate_blocker_destinations_do_not_hide_distinct_actions():
+    timeline = dict(action="/timeline", actionLabel="Открыть путь адаптации", reason="Закройте зависимость")
+    contacts = dict(action="/contacts", actionLabel="Контакты наставника", reason="Нужно подтверждение")
+    answer, actions = _blocker_reply([timeline, timeline, timeline, contacts])
+    assert [action["target"] for action in actions] == ["/timeline", "/contacts"]
+    assert answer == "Закройте зависимость. Нужно подтверждение."

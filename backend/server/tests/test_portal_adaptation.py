@@ -148,6 +148,21 @@ def test_quick_start_requires_grants_and_confirmation(db, actors):
     assert not intern.get(plan_url).get_json()["quickStart"][1]["done"]
 
 
+def test_chat_distinguishes_actions_for_a_blocked_access_step(actors):
+    intern, _, headers, _, _ = actors
+    reply = intern.post("/api/chat", headers=headers, json=dict(
+        message="Почему я не могу продолжить?", taskId="wk1-access", messageId=uuid4().hex,
+    ))
+    assert reply.status_code == 200, reply.get_json()
+    actions = reply.get_json()["actions"]
+    assert [action["label"] for action in actions] == [
+        "Открыть путь адаптации", "Запросить доступ к Confluence", "Запросить доступ к Jira",
+    ]
+    assert actions[0]["target"] == "/timeline"
+    assert "system=confluence" in actions[1]["target"]
+    assert "system=jira" in actions[2]["target"]
+
+
 def test_chat_fts_feedback_and_source_actions(db, actors):
     intern, user, headers, _, _ = actors
     assert intern.get("/api/chat/config").get_json() == {"aiMode": "demo"}

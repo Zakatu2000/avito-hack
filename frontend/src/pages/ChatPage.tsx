@@ -19,23 +19,45 @@ const SUGGESTIONS = [
   'К кому обратиться?', 'Где документы?',
 ]
 
+function actionLabel(action: ChatAction) {
+  // Messages saved before the server supplied descriptive blocker labels.
+  if (action.label !== 'Устранить блокировку' || !action.target) return action.label
+  const [path, query = ''] = action.target.split('?')
+  if (path === '/timeline') return 'Открыть путь адаптации'
+  if (path === '/contacts') return 'Контакты наставника'
+  if (path.startsWith('/requests#')) return 'Открыть заявку · ' + path.slice(-6)
+  if (path === '/requests/new/mentor_consultation') return 'Запросить консультацию'
+  if (path === '/requests/new/access') {
+    const system = new URLSearchParams(query).get('system')
+    const name = system === 'repo' ? 'репозиторию' : system === 'jira' ? 'Jira' : system === 'confluence' ? 'Confluence' : system
+    return name ? 'Запросить доступ к ' + name : 'Запросить доступ'
+  }
+  return action.label
+}
+
 function ActionCards({ actions }: { actions: ChatAction[] }) {
   const contacts = useContacts()
-  if (actions.length === 0) return null
+  const destinations = new Map<string, ChatAction>()
+  for (const action of actions) {
+    if (!action.target) continue
+    const key = action.kind + ':' + action.target
+    if (!destinations.has(key)) destinations.set(key, action)
+  }
+  if (!destinations.size) return null
   return (
     <div className="msg__actions">
-      {actions.map((action) => {
+      {Array.from(destinations, ([key, action]) => {
         if (action.kind === 'navigate' && action.target) {
           return (
-            <Link key={action.id} to={action.target} className="btn btn--s btn--primary">
-              {action.label}
+            <Link key={key} to={action.target} className="btn btn--s btn--primary">
+              {actionLabel(action)}
             </Link>
           )
         }
         const contact = contacts.data?.find((c) => c.id === action.target)
         if (!contact) return null
         return (
-          <div key={action.id} className="msg__contact">
+          <div key={key} className="msg__contact">
             <strong>{contact.name}</strong> · {contact.role}
             <br />
             {contact.channel} · {contact.responseTime}

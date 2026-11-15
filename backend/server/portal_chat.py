@@ -62,6 +62,21 @@ def _action(target, label):
     return dict(id=target, kind="navigate", target=target, label=label)
 
 
+def _blocker_reply(blockers, limit=3):
+    reasons = []
+    actions = {}
+    for blocker in blockers:
+        reason = blocker["reason"]
+        target = blocker["action"]
+        if reason not in reasons and len(reasons) < limit:
+            reasons.append(reason)
+        if target not in actions and len(actions) < limit:
+            actions[target] = _action(target, blocker["actionLabel"])
+        if len(reasons) == len(actions) == limit:
+            break
+    return " ".join(reason + "." for reason in reasons), list(actions.values())
+
+
 def _route(conn, account, text, task_id, facts, legacy_items):
     intent = classify(text)
     lowered = text.casefold()
@@ -93,9 +108,8 @@ def _route(conn, account, text, task_id, facts, legacy_items):
     if any(word in lowered for word in ("почему я не могу продолжить", "что мешает", "блокиру")) or selected:
         blockers = selected["blockers"] if selected else facts["blockers"]
         if blockers:
-            return "next_step", " ".join(b["reason"] + "." for b in blockers[:3]), [
-                _action(b["action"], "Устранить блокировку") for b in blockers[:3]
-            ], []
+            answer, actions = _blocker_reply(blockers)
+            return "next_step", answer, actions, []
         if selected:
             return "next_step", f'{selected["title"]}. {selected["nextStep"]}', [timeline], []
     if intent == "access":
@@ -121,8 +135,10 @@ def _route(conn, account, text, task_id, facts, legacy_items):
         if step:
             return "next_step", "Следующий шаг: " + step["title"], [timeline], []
         blockers = facts["blockers"]
-        text = blockers[0]["reason"] if blockers else "На текущем этапе нет новых шагов."
-        return "next_step", text, [_action(blockers[0]["action"], "Устранить блокировку")] if blockers else [timeline], []
+        if blockers:
+            answer, actions = _blocker_reply(blockers, limit=1)
+            return "next_step", answer, actions, []
+        return "next_step", "На текущем этапе нет новых шагов.", [timeline], []
     if intent in ("mentor", "feedback", "curator_reply"):
         if any(marker in lowered for marker in _WELLBEING_MARKERS):
             return intent, "Сочувствую, похоже, ты сильно устал. Обсуди нагрузку с наставником или руководителем.", [contacts], []

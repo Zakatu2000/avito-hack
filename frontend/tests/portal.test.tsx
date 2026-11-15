@@ -175,3 +175,21 @@ it('обрабатывает IME и многострочный ввод, пок�
   await userEvent.click(button('Решено'))
   expect(await screen.findByText('Отзыв сохранён')).toBeInTheDocument()
 })
+
+it('показывает разные названия для старых кнопок блокировки и убирает одинаковые ссылки', async () => {
+  server.use(
+    http.get('*/api/chat/config', () => json({ aiMode: 'demo' })),
+    http.post('*/api/chat', () => json({
+      intentId: 'next_step', text: 'Проверь доступы', aiMode: 'demo',
+      actions: ['/timeline', '/requests/new/access?system=jira', '/requests/new/access?system=confluence', '/timeline']
+        .map((target, index) => ({ id: String(index), label: 'Устранить блокировку', kind: 'navigate', target })),
+    })),
+  )
+  renderWithProviders(<ChatPage />)
+  const input = screen.getByRole('textbox', { name: 'Сообщение боту' })
+  await userEvent.type(input, 'Что мешает?{Enter}')
+  expect(await screen.findByRole('link', { name: 'Запросить доступ к Jira' })).toHaveAttribute('href', '/requests/new/access?system=jira')
+  expect(screen.getByRole('link', { name: 'Запросить доступ к Confluence' })).toBeInTheDocument()
+  expect(screen.getAllByRole('link', { name: 'Открыть путь адаптации' })).toHaveLength(1)
+  expect(screen.queryByText('Устранить блокировку')).toBeNull()
+})
