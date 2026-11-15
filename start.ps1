@@ -39,7 +39,8 @@ function Test-PreviewHealth {
     try {
         $health = Invoke-RestMethod -Uri "$origin/health" -TimeoutSec 2
         $page = Invoke-WebRequest -Uri $origin -TimeoutSec 2 -UseBasicParsing
-        return $health.status -eq 'ok' -and $page.StatusCode -eq 200
+        return $health.status -eq 'ok' -and $page.StatusCode -eq 200 -and
+            $page.Content -match '<title>[^<]*AI-buddy[^<]*</title>'
     } catch {
         return $false
     }
@@ -58,10 +59,10 @@ function Test-ExistingPreview {
     $api = Get-PreviewCommandLine $apiPort
     $web = Get-PreviewCommandLine $webPort
     $postgres = (Get-PreviewCommandLine $dbPort).Replace('/', '\')
-    $dataArgument = [regex]::Escape($pgData.Replace('/', '\'))
+    # The same preview can have been started from another copy of the repository.
     return ($api -like "*-m waitress --listen=127.0.0.1:$apiPort --call server.app:create_app*") -and
         ($web -like "*vite/bin/vite.js --config vite.integrated.config.ts*--port $webPort*") -and
-        ($postgres -match ('-D\s+"?' + $dataArgument + '"?(?:\s|$)')) -and
+        ($postgres -match '\bpostgres\.exe"?\s+-D\s+.*\\\.local\\preview-pg"?(?:\s|$)') -and
         (Test-PreviewHealth)
 }
 
@@ -94,7 +95,7 @@ foreach ($key in $envKeys) { $savedEnv[$key] = [Environment]::GetEnvironmentVari
 
 try {
     if (Test-ExistingPreview) {
-        Write-Host "AI Buddy is already running at $origin."
+        Write-Host "AI Buddy is already running at $origin. Stop that preview before starting a different checkout."
         Open-PreviewPage
         return
     }
