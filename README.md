@@ -87,7 +87,7 @@ python -m pip install -r server/requirements-test.txt -r contracts/requirements.
 python scripts/check.py
 ```
 
-Скрипт проверяет API, Python, AI и демодиалоги. Отчёт Python записывается в `backend/reports/python-coverage.json`. Результаты зафиксированных прогонов и условия их воспроизведения описаны в [VALIDATION.md](VALIDATION.md).
+Скрипт проверяет API, Python, AI и демодиалоги. Отчёт Python записывается в `backend/reports/python-coverage.json`. Текущий замер опубликован в [отчёте о покрытии](COVERAGE.md). Результаты предыдущих прогонов описаны в [VALIDATION.md](VALIDATION.md).
 
 Для проверки в Chromium запустите приложение и выполните команды из корня. Пример для стенда Compose:
 
