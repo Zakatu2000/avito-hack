@@ -13,6 +13,7 @@ $dbPort = 55441
 $apiPort = 5050
 $webPort = 5177
 $origin = "http://localhost:$webPort"
+$probeOrigin = "http://127.0.0.1:$webPort"
 $pgData = Join-Path $runtime 'preview-pg'
 $passwordFile = Join-Path $runtime 'preview-db-password'
 $python = Join-Path $backend '.venv/Scripts/python.exe'
@@ -36,8 +37,8 @@ function Assert-FreePort {
 
 function Test-PreviewHealth {
     try {
-        $health = Invoke-RestMethod -Uri "$origin/health" -TimeoutSec 2
-        $page = Invoke-WebRequest -Uri $origin -TimeoutSec 2 -UseBasicParsing
+        $health = Invoke-RestMethod -Uri "$probeOrigin/health" -TimeoutSec 2
+        $page = Invoke-WebRequest -Uri $probeOrigin -TimeoutSec 2 -UseBasicParsing
         return $health.status -eq 'ok' -and $page.StatusCode -eq 200 -and
             $page.Content -match '<title>[^<]*AI-buddy[^<]*</title>'
     } catch {

@@ -8,3 +8,5 @@ frontend/public/mockServiceWorker.js text eol=lf
 # The launchers are opened directly by Explorer and Finder.
 start.cmd text eol=crlf
 start.command text eol=lf
+A36D6_Avito_Start_Presentation.pdf binary
+Video1.mp4 filter=lfs diff=lfs merge=lfs -text
